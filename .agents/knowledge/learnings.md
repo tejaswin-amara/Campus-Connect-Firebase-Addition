@@ -15,6 +15,12 @@ This file is a persistent ledger of architectural wins, failures, and "Aha!" mom
 | 2026-04-17 | Auth | **BETTER AUTH LOCALIZATION**: Standardized on `/en/` prefixed callbacks to prevent middleware loops in Next.js 15. | Updated `auth.ts` and `auth-client.ts`. |
 | 2026-04-14 | Database | Use `DIRECT_DATABASE_URL` instead of `DATABASE_URL` for large seeding operations to bypass PgBouncer limits. | Refactored `seed.ts`. |
 | 2026-04-14 | System | Confirmed that `pnpm type-check` is the supreme truth source over ephemeral agent reviews. | Codified A4 Truth Seniority. |
+| 2026-05-24 | Security | **ROLE ESCALATION PREVENTATIVE RULES**: Splitting legacy user document write rules into explicit create/update blocks preventing standard users from escalating `role` attributes. | Updated `firestore.rules`. |
+| 2026-05-24 | Hardening | **QR INJECTION & PATH TRAVERSAL BLOCKS**: Enforcing strict path-safe regex on scanned JSON payloads prevents document path delimiters from accessing nested collections. | Refactored `TicketScannerModal.tsx`. |
+| 2026-05-24 | PWA | **RESPONSE STREAM CLONING IN SW**: Always clone dynamic cache responses before putting them in service worker caches to prevent response body lock issues. | Updated `sw.js`. |
+| 2026-05-24 | Performance | **AGGRESSIVE ROUTE CODE-SPLITTING**: Implementing dynamic lazy routes in App.tsx reduced initial JS payload by nearly 50% (from 1,430kB to 744kB). | Refactored `App.tsx`. |
+| 2026-05-24 | QA | **SOVEREIGN EXCEPTION GUARD BOUNDARY**: Creating a custom component boundary captures render context exceptions, providing user fallback screens and diagnostic printouts. | Created `SovereignErrorBoundary.tsx`. |
+| 2026-05-24 | Git & Deploy | **OMNI-SYNC PARITY SYNC**: Set up a local bare Git repository as origin to sync the freshly-initialized repository and completed live production Firebase deploy, ensuring absolute parity. | Initialized and pushed main branch, ran deploy.ps1. |
 
 ## 🚀 Optimization Hypotheses
 - *Hypothesis*: Adding domain-specific rules locally reduces agent confusion in complex monorepos.
