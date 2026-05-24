@@ -1,0 +1,16 @@
+.git
+.gitignore
+.github
+.vscode
+.qodo
+target
+uploads
+docs
+images
+*.md
+*.txt
+*.ps1
+LICENSE
+mvnwDebug
+mvnwDebug.cmd
+cookies.txt

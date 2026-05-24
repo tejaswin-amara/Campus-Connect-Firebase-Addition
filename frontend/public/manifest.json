@@ -1,0 +1,30 @@
+{
+  "short_name": "CampusConnect",
+  "name": "Campus Connect Ecosystem",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "48x48 72x72 96x96 144x144 192x192 512x512"
+    },
+    {
+      "src": "/logo_icon.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo_full.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/dashboard",
+  "background_color": "#0F0F13",
+  "theme_color": "#0F0F13",
+  "display": "standalone",
+  "orientation": "portrait",
+  "categories": ["education", "social", "productivity"],
+  "description": "The premier, real-time academic event and gamified peer ecosystem for KLH University."
+}

@@ -1,0 +1,55 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Defensive validation helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
+      );
+    }
+
+    // 1. Users profiles: Read by any authenticated user, write only by owner or admin
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && (
+        !request.resource.data.keys().hasAll(['role']) || 
+        request.resource.data.role == 'STUDENT' || 
+        isAdmin()
+      );
+      allow update: if (isOwner(userId) && (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])
+      )) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 2. Events catalog: Read by any authenticated user, write strictly by admin
+    match /events/{eventId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // 3. Registrations: Users can only view and modify their own registrations; Admins can manage all
+    match /registrations/{regId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Default lock down for any other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
