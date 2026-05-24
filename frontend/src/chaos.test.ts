@@ -39,7 +39,7 @@ describe('🔱 SOVEREIGN CHAOS ENGINEERING PROTOCOL (E2E SYSTEM VALIDATION)', ()
       // Simulate Firebase transaction execute logic
       // In Firestore, if multiple transactions update the same doc, they run sequentially.
       // Retries are triggered if the read version changes.
-      const executeTransaction = async (userId: string) => {
+      const executeTransaction = async () => {
         // Read Phase
         const currentCount = registeredCount;
         const currentWaitlist = waitlistCount;
@@ -57,8 +57,8 @@ describe('🔱 SOVEREIGN CHAOS ENGINEERING PROTOCOL (E2E SYSTEM VALIDATION)', ()
       };
 
       // Trigger 50 concurrent registration tasks
-      const registrationPromises = Array.from({ length: 50 }).map((_, i) => 
-        executeTransaction(`student_${i}`)
+      const registrationPromises = Array.from({ length: 50 }).map(() => 
+        executeTransaction()
       );
 
       await Promise.all(registrationPromises);
