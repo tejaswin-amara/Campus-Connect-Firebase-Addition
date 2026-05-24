@@ -43,7 +43,11 @@ service cloud.firestore {
     // 3. Registrations: Users can only view and modify their own registrations; Admins can manage all
     match /registrations/{regId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && 
+                    request.resource.data.userId == request.auth.uid && (
+                      get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.isPaid != true || 
+                      isAdmin()
+                    );
       allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
