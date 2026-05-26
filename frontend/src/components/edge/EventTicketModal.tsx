@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { X, Sparkles, Calendar } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '../ui/Button';
@@ -175,6 +175,56 @@ export function EventTicketModal({
   registrationId,
   peerAttendees = []
 }: EventTicketModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll(
+          'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex="0"], [contenteditable]'
+        );
+        const firstElement = focusableElements[0] as HTMLElement;
+        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+        if (focusableElements.length === 0) return;
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            lastElement.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            firstElement.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    
+    // Auto-focus first focusable element
+    if (modalRef.current) {
+      const closeButton = modalRef.current.querySelector('button[aria-label="Close ticket pass modal"]') as HTMLElement;
+      if (closeButton) {
+        closeButton.focus();
+      } else {
+        modalRef.current.focus();
+      }
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const qrPayload = JSON.stringify({
@@ -184,10 +234,10 @@ export function EventTicketModal({
   });
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       
       {/* Elite Tactile Perforated Ticket Card */}
-      <div className="relative w-full max-w-[340px] bg-[#050505] border border-white/5 shadow-2xl rounded-2xl flex flex-col items-center justify-center py-6 overflow-hidden animate-in zoom-in-95 duration-200">
+      <div ref={modalRef} tabIndex={-1} className="relative w-full max-w-[340px] bg-[#050505] border border-white/5 shadow-2xl rounded-2xl flex flex-col items-center justify-center py-6 overflow-hidden animate-in zoom-in-95 duration-200 outline-none">
         
         {/* Glow Accent Header */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-purple-500 to-cyan-500 rounded-t-2xl shadow-inner-glow" />

@@ -5,7 +5,6 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EngagementStreak } from '../components/innovations/AcademicInnovations';
 import { EventCard } from '../components/ui/EventCard';
-import type { EventData } from '../components/ui/EventCard';
 import { FilterPill } from '../components/ui/FilterPill';
 import { Button } from '../components/ui/Button';
 import { useSearchParams } from 'react-router-dom';
@@ -14,9 +13,11 @@ import { cn } from '../lib/utils';
 import { useFCM } from '../hooks/useFCM';
 import { EventTicketModal } from '../components/edge/EventTicketModal';
 import { TicketScannerModal } from '../components/edge/TicketScannerModal';
-import { QRCodeSVG } from 'qrcode.react';
 import { getHaversineDistance, KLH_COORDINATES, GEOFENCE_RADIUS_METERS } from '../lib/geoUtils';
 import { useTemporalConflict } from '../hooks/useTemporalConflict';
+import { SquadPanel } from '../components/dashboard/SquadPanel';
+import { FeedbackPanel } from '../components/dashboard/FeedbackPanel';
+import type { EventData, Registration, PeerRelation } from '../types';
 import { 
   collection, 
   getDocs, 
@@ -57,8 +58,7 @@ import {
   Link as LinkIcon,
   BarChart2,
   MapPin,
-  Camera,
-  Sparkles
+  Camera
 } from 'lucide-react';
 
 type AdminStatsType = {
@@ -110,7 +110,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [events, setEvents] = useState<EventData[]>([]);
   const [registrationCounts, setRegistrationCounts] = useState<Record<string, number>>({});
-  const [myRegistrations, setMyRegistrations] = useState<any[]>([]);
+  const [myRegistrations, setMyRegistrations] = useState<Registration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [adminStats, setAdminStats] = useState<AdminStatsType | null>(null);
   
@@ -140,24 +140,17 @@ export default function Dashboard() {
   const [multiplierActive, setMultiplierActive] = useState(false);
 
   // Squad Connections States
-  const [myPeers, setMyPeers] = useState<any[]>([]);
+  const [myPeers, setMyPeers] = useState<PeerRelation[]>([]);
   const [peerRegistrations, setPeerRegistrations] = useState<any[]>([]);
-  const [searchEmail, setSearchEmail] = useState('');
-  const [peerSearchError, setPeerSearchError] = useState('');
-  const [peerSearchSuccess, setPeerSearchSuccess] = useState('');
-  const [isAddingPeer, setIsAddingPeer] = useState(false);
 
   // Admin Tab & Analytic States
   const [activeAdminTab, setActiveAdminTab] = useState<'catalog' | 'analytics'>('catalog');
-  const [adminRegistrations, setAdminRegistrations] = useState<any[]>([]);
+  const [adminRegistrations, setAdminRegistrations] = useState<Registration[]>([]);
   const [adminFeedback, setAdminFeedback] = useState<any[]>([]);
 
   // Post-Event Feedback States
   const [feedbackSubmittedIds, setFeedbackSubmittedIds] = useState<string[]>([]);
   const [pendingFeedbackEvent, setPendingFeedbackEvent] = useState<EventData | null>(null);
-  const [feedbackRating, setFeedbackRating] = useState(5);
-  const [feedbackTakeaway, setFeedbackTakeaway] = useState('');
-  const [isSavingFeedback, setIsSavingFeedback] = useState(false);
 
   // Geo-Fenced Access Control State
   const [isOnCampus, setIsOnCampus] = useState<boolean | null>(null);
@@ -182,6 +175,8 @@ export default function Dashboard() {
   const [formTicketPrice, setFormTicketPrice] = useState('');
   const [formImageFile, setFormImageFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formModalRef = useRef<HTMLDivElement>(null);
+  const checkoutModalRef = useRef<HTMLDivElement>(null);
 
   // Checkout Modal State
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -322,7 +317,7 @@ export default function Dashboard() {
       if (user.role === 'ADMIN') {
         try {
           const allRegsSnap = await getDocs(collection(db, 'registrations'));
-          const allRegs = allRegsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const allRegs = allRegsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Registration));
           setAdminRegistrations(allRegs);
 
           const allFeedbackSnap = await getDocs(collection(db, 'feedback'));
@@ -883,40 +878,30 @@ export default function Dashboard() {
     }
   }, [events, registrationCounts]);
 
-  // Add peer connection handler
-  const handleAddPeer = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !searchEmail.trim()) return;
-    setPeerSearchError('');
-    setPeerSearchSuccess('');
-    setIsAddingPeer(true);
+  // Add peer connection handler (callback for SquadPanel)
+  const handleAddPeer = useCallback(async (email: string) => {
+    if (!user || !email.trim()) return { success: false, error: 'User email not found.' };
 
     try {
-      const emailQuery = query(collection(db, 'users'), where('email', '==', searchEmail.trim().toLowerCase()));
+      const emailQuery = query(collection(db, 'users'), where('email', '==', email.trim().toLowerCase()));
       const querySnap = await getDocs(emailQuery);
 
       if (querySnap.empty) {
-        setPeerSearchError('No student found with this email.');
-        setIsAddingPeer(false);
-        return;
+        return { success: false, error: 'No student found with this email.' };
       }
 
       const peerDoc = querySnap.docs[0];
       const peerData = peerDoc.data();
 
       if (peerData.id === user.id) {
-        setPeerSearchError('You cannot add yourself as a peer.');
-        setIsAddingPeer(false);
-        return;
+        return { success: false, error: 'You cannot add yourself as a peer.' };
       }
 
       // Check if already in connections
       const connRef = doc(db, 'users', user.id, 'connections', peerData.id);
       const connSnap = await getDoc(connRef);
       if (connSnap.exists()) {
-        setPeerSearchError('This student is already in your squad.');
-        setIsAddingPeer(false);
-        return;
+        return { success: false, error: 'This student is already in your squad.' };
       }
 
       // Store in connections sub-collection
@@ -929,16 +914,13 @@ export default function Dashboard() {
         addedAt: new Date().toISOString()
       });
 
-      setPeerSearchSuccess(`${peerData.username} added to squad!`);
-      setSearchEmail('');
       fetchData(); // reload squad graph counters
+      return { success: true, username: peerData.username };
     } catch (err: any) {
       console.error(err);
-      setPeerSearchError('Failed to establish connection.');
-    } finally {
-      setIsAddingPeer(false);
+      return { success: false, error: 'Failed to establish connection.' };
     }
-  }, [user, searchEmail, fetchData]);
+  }, [user, fetchData]);
 
   // Pre-calculated memoized map for peer attendees per event to maintain reference stability
   const eventPeerAttendeesMap = useMemo(() => {
@@ -968,11 +950,9 @@ export default function Dashboard() {
     }
   }, [events, myRegistrations]);
 
-  // Save feedback handler
-  const handleSaveFeedback = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !pendingFeedbackEvent) return;
-    setIsSavingFeedback(true);
+  // Save feedback handler callback for FeedbackPanel
+  const handleSaveFeedback = useCallback(async (rating: number, takeaway: string) => {
+    if (!user || !pendingFeedbackEvent) return false;
 
     try {
       const feedbackPayload = {
@@ -980,8 +960,8 @@ export default function Dashboard() {
         eventTitle: pendingFeedbackEvent.title,
         userId: user.id,
         username: user.username,
-        rating: feedbackRating,
-        takeaway: feedbackTakeaway.trim(),
+        rating,
+        takeaway: takeaway.trim(),
         submittedAt: new Date().toISOString()
       };
 
@@ -991,23 +971,27 @@ export default function Dashboard() {
       // Update local state immediately
       setFeedbackSubmittedIds(prev => [...prev, pendingFeedbackEvent.id as string]);
       setPendingFeedbackEvent(null);
-      setFeedbackRating(5);
-      setFeedbackTakeaway('');
       alert('Thank you for your valuable feedback! 🌟');
       fetchData(); // reload
+      return true;
     } catch (err) {
       console.error('Failed to submit feedback:', err);
       alert('Failed to save rating. Check connectivity.');
-    } finally {
-      setIsSavingFeedback(false);
+      return false;
     }
-  }, [user, pendingFeedbackEvent, feedbackRating, feedbackTakeaway, fetchData]);
+  }, [user, pendingFeedbackEvent, fetchData]);
+
+  const handleSkipFeedback = useCallback(() => {
+    if (!pendingFeedbackEvent) return;
+    setFeedbackSubmittedIds(prev => [...prev, pendingFeedbackEvent.id as string]);
+    setPendingFeedbackEvent(null);
+  }, [pendingFeedbackEvent]);
 
   // Check pending feedback for student
   useEffect(() => {
     if (user?.role === 'STUDENT' && myRegistrations.length > 0) {
       const attendedRegs = myRegistrations.filter(r => r.status === 'ATTENDED');
-      const pending = attendedRegs.find(r => !feedbackSubmittedIds.includes(r.eventId));
+      const pending = attendedRegs.find(r => !feedbackSubmittedIds.includes(String(r.eventId)));
       if (pending && pending.event) {
         setPendingFeedbackEvent(pending.event);
       } else {
@@ -1049,6 +1033,106 @@ export default function Dashboard() {
       setIsOnCampus(true);
     }
   }, [user, checkGeofence]);
+
+  // A11y keyboard dismiss for local dashboard overlay modals
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isModalOpen) {
+          setIsModalOpen(false);
+        } else if (isCheckoutOpen) {
+          setIsCheckoutOpen(false);
+          setCheckoutEvent(null);
+        } else if (conflictWarning?.isOpen) {
+          setConflictWarning(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isModalOpen, isCheckoutOpen, conflictWarning]);
+
+  // Focus trapping for Event Form Modal
+  useEffect(() => {
+    if (!isModalOpen || !formModalRef.current) return;
+    
+    const handleFormFocusTrap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      
+      const focusable = formModalRef.current?.querySelectorAll(
+        'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex="0"], [contenteditable]'
+      );
+      if (!focusable || focusable.length === 0) return;
+      
+      const first = focusable[0] as HTMLElement;
+      const last = focusable[focusable.length - 1] as HTMLElement;
+      
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          last.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === last) {
+          first.focus();
+          e.preventDefault();
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleFormFocusTrap);
+    
+    // Auto-focus title input when form opens
+    const titleInput = formModalRef.current.querySelector('#event-title-input') as HTMLElement;
+    if (titleInput) {
+      titleInput.focus();
+    } else {
+      formModalRef.current.focus();
+    }
+    
+    return () => window.removeEventListener('keydown', handleFormFocusTrap);
+  }, [isModalOpen]);
+
+  // Focus trapping for Checkout Modal
+  useEffect(() => {
+    if (!isCheckoutOpen || !checkoutModalRef.current) return;
+    
+    const handleCheckoutFocusTrap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      
+      const focusable = checkoutModalRef.current?.querySelectorAll(
+        'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex="0"], [contenteditable]'
+      );
+      if (!focusable || focusable.length === 0) return;
+      
+      const first = focusable[0] as HTMLElement;
+      const last = focusable[focusable.length - 1] as HTMLElement;
+      
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          last.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === last) {
+          first.focus();
+          e.preventDefault();
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleCheckoutFocusTrap);
+    
+    // Auto-focus cardholder name input when checkout opens
+    const cardholderInput = checkoutModalRef.current.querySelector('#stripe-name-input') as HTMLElement;
+    if (cardholderInput) {
+      cardholderInput.focus();
+    } else {
+      checkoutModalRef.current.focus();
+    }
+    
+    return () => window.removeEventListener('keydown', handleCheckoutFocusTrap);
+  }, [isCheckoutOpen]);
 
   // Filtering events based on user input queries with useMemo
   const filteredEvents = useMemo(() => {
@@ -1371,83 +1455,12 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Squad Connections & Profile QR Column */}
-          <div className="space-y-6">
-            <div className="flex items-center gap-2.5">
-              <Users className="h-5 w-5 text-cyan-400" />
-              <h3 className="text-xl font-bold tracking-tight">Your Squad Graph</h3>
-            </div>
-
-            {/* Add to Squad Card */}
-            <Card className="glass border-primary/20 p-5 rounded-2xl relative z-0 overflow-hidden group">
-              <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-primary to-cyan-500" />
-              <h4 className="text-sm font-extrabold text-foreground mb-3 uppercase tracking-wider">Connect with Peers</h4>
-              <form onSubmit={handleAddPeer} className="space-y-3">
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    required
-                    value={searchEmail}
-                    onChange={(e) => setSearchEmail(e.target.value)}
-                    placeholder="Enter peer's email..."
-                    className="cyber-input h-10 text-xs flex-grow"
-                  />
-                  <Button 
-                    type="submit" 
-                    variant="primary" 
-                    className="h-10 text-xs px-4 bg-gradient-to-r from-primary to-purple-600 border-primary/25 cursor-pointer active:scale-95 font-bold shrink-0"
-                    disabled={isAddingPeer}
-                  >
-                    {isAddingPeer ? 'Connecting...' : 'Add'}
-                  </Button>
-                </div>
-                {peerSearchError && <p className="text-[10px] font-semibold text-red-400">{peerSearchError}</p>}
-                {peerSearchSuccess && <p className="text-[10px] font-semibold text-emerald-400">{peerSearchSuccess}</p>}
-              </form>
-
-              {/* Squad List */}
-              <div className="mt-5 space-y-2 border-t border-border/40 pt-4 max-h-[180px] overflow-y-auto scrollbar-thin">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">My Squad ({myPeers.length})</p>
-                {myPeers.length === 0 ? (
-                  <p className="text-[10px] text-muted-foreground/70 italic">No peers added yet. Invite your classmates to assemble your squad!</p>
-                ) : (
-                  myPeers.map((peer) => (
-                    <div 
-                      key={peer.id} 
-                      className="flex items-center gap-2.5 p-2 rounded-xl bg-white/5 border border-border/40 hover:bg-white/10 transition-colors"
-                    >
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-cyan-500 border border-white/10 flex items-center justify-center text-xs font-black text-white shrink-0">
-                        {peer.username.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0 flex-grow">
-                        <p className="text-xs font-black text-foreground truncate">{peer.username}</p>
-                        <p className="text-[9px] text-muted-foreground truncate">{peer.email}</p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </Card>
-
-            {/* Profile QR Card */}
-            <Card className="glass border-cyan-500/20 p-5 rounded-2xl relative z-0 overflow-hidden group">
-              <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-cyan-500 to-emerald-500" />
-              <h4 className="text-sm font-extrabold text-foreground mb-1.5 uppercase tracking-wider">My Profile Pass</h4>
-              <p className="text-[9px] text-muted-foreground leading-relaxed mb-4">Let a peer scan this pass from their screen to instantly add you to their academic squad!</p>
-              
-              <div className="flex flex-col items-center justify-center p-3.5 rounded-2xl bg-white/5 border border-white/10 animate-pulse-slow">
-                <QRCodeSVG 
-                  value={`campusconnect:profile:${user.id}:${user.username}:${user.email || 'student@campusconnect.edu'}`}
-                  size={120}
-                  bgColor={"transparent"}
-                  fgColor={"#ffffff"}
-                  level={"M"}
-                  includeMargin={true}
-                />
-                <span className="text-[9px] font-bold text-cyan-400 mt-2.5 uppercase tracking-wider">Scan to Add Squad</span>
-              </div>
-            </Card>
-          </div>
+          {/* Decomposed Squad Connections & Profile QR Column */}
+          <SquadPanel 
+            user={user as any}
+            myPeers={myPeers}
+            onAddPeer={handleAddPeer}
+          />
         </motion.div>
       )}
 
@@ -1525,8 +1538,8 @@ export default function Dashboard() {
 
       {/* Creation & Editing Modal Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md overflow-y-auto">
-          <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl glass border-primary/30 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md overflow-y-auto">
+          <div ref={formModalRef} tabIndex={-1} className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl glass border-primary/30 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 outline-none">
             
             {/* Glow Accent Header */}
             <div className="h-1 w-full bg-gradient-to-r from-primary via-purple-500 to-cyan-500" />
@@ -1835,8 +1848,8 @@ export default function Dashboard() {
 
       {/* Stripe elements simulated checkout overlay */}
       {isCheckoutOpen && checkoutEvent && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md rounded-2xl glass border-cyan-500/30 bg-[#0F0F13]/95 shadow-2xl p-6 flex flex-col animate-in zoom-in-95 duration-200">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div ref={checkoutModalRef} tabIndex={-1} className="relative w-full max-w-md rounded-2xl glass border-cyan-500/30 bg-[#0F0F13]/95 shadow-2xl p-6 flex flex-col animate-in zoom-in-95 duration-200 outline-none">
             {/* Ambient neon styling indicator */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-primary rounded-t-2xl" />
             
@@ -2015,79 +2028,13 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Blurred backdrop immersive Feedback Rating Modal */}
+      {/* Decomposed Immersive Feedback Rating Modal */}
       {pendingFeedbackEvent && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-background/30 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="relative w-full max-w-md rounded-2xl glass border-primary/30 shadow-2xl p-6 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-200">
-            {/* Holographic Glowing Header Accent */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-cyan-400 to-emerald-500 rounded-t-2xl" />
-
-            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-primary mb-4 animate-bounce">
-              <Sparkles className="h-6 w-6" />
-            </div>
-
-            <h3 className="text-xl font-black tracking-tight text-foreground uppercase">Rate Your Experience!</h3>
-            <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-              We noticed you recently checked in to <strong className="text-primary">"{pendingFeedbackEvent.title}"</strong>. Help KLH organizers improve event quality by submitting a quick rating!
-            </p>
-
-            <form onSubmit={handleSaveFeedback} className="w-full mt-6 space-y-4">
-              {/* Star selector */}
-              <div className="flex justify-center gap-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    type="button"
-                    key={star}
-                    onClick={() => setFeedbackRating(star)}
-                    className={cn(
-                      "text-3xl transition-transform duration-200 hover:scale-125 cursor-pointer active:scale-95",
-                      star <= feedbackRating ? "text-amber-400" : "text-slate-600"
-                    )}
-                  >
-                    ★
-                  </button>
-                ))}
-              </div>
-
-              {/* Takeaway text field */}
-              <div className="space-y-1 text-left">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                  One-line Takeaway
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={feedbackTakeaway}
-                  onChange={(e) => setFeedbackTakeaway(e.target.value)}
-                  placeholder="e.g. Breathtaking learning experience, highly recommended!"
-                  className="cyber-input h-11 text-xs"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => {
-                    setFeedbackSubmittedIds(prev => [...prev, pendingFeedbackEvent.id as string]);
-                    setPendingFeedbackEvent(null);
-                  }}
-                >
-                  Skip
-                </Button>
-                <Button 
-                  type="submit" 
-                  variant="primary" 
-                  className="flex-1 bg-gradient-to-r from-primary to-cyan-500 border-primary/30"
-                  disabled={isSavingFeedback}
-                >
-                  {isSavingFeedback ? 'Submitting...' : 'Submit Feedback'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <FeedbackPanel 
+          pendingFeedbackEvent={pendingFeedbackEvent}
+          onSubmitFeedback={handleSaveFeedback}
+          onSkip={handleSkipFeedback}
+        />
       )}
     </motion.div>
   );
