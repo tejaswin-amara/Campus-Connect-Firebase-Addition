@@ -26,5 +26,37 @@
   "display": "standalone",
   "orientation": "portrait",
   "categories": ["education", "social", "productivity"],
-  "description": "The premier, real-time academic event and gamified peer ecosystem for KLH University."
+  "description": "The premier, real-time academic event and gamified peer ecosystem for KLH University.",
+  "shortcuts": [
+    {
+      "name": "Explore Events",
+      "short_name": "Events",
+      "description": "Explore all academic and cultural programs on campus",
+      "url": "/events",
+      "icons": [{ "src": "/favicon.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Live Access Scanner",
+      "short_name": "Scan",
+      "description": "Open ticket pass scanner check-in booth",
+      "url": "/kiosk",
+      "icons": [{ "src": "/favicon.svg", "sizes": "96x96" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/logo_full.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Campus Connect Control Center Dashboard"
+    },
+    {
+      "src": "/logo_icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Campus Connect Student Hub view"
+    }
+  ]
 }
