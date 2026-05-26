@@ -10,7 +10,7 @@ service firebase.storage {
     // Helper to check if user is an Admin
     function isAdmin() {
       return isAuthenticated() && 
-        firestore.exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
     }
 
     // 1. Event cover images: Authenticated read access, write access strictly restricted to Admins

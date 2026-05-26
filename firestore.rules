@@ -32,6 +32,11 @@ service cloud.firestore {
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])
       )) || isAdmin();
       allow delete: if isAdmin();
+
+      // Social squad connections: Owner or Admin read/write permissions
+      match /connections/{connectionId} {
+        allow read, write: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      }
     }
 
     // 2. Events catalog: Read by any authenticated user, write strictly by admin
@@ -49,6 +54,7 @@ service cloud.firestore {
                     (request.resource.data.registeredAt == request.time) &&
                     (
                       get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.isPaid != true || 
+                      request.resource.data.paymentStatus == 'PAID' ||
                       isAdmin()
                     );
       allow update: if isAuthenticated() && 
@@ -56,6 +62,14 @@ service cloud.firestore {
                     // Standard users cannot change their status to ATTENDED manually (only Admins/Kiosks can set or verify attendance)
                     (request.resource.data.status != 'ATTENDED' || isAdmin() || resource.data.status == 'ATTENDED');
       allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // 4. Feedback ratings: Authenticated reads, owned post creations
+    match /feedback/{feedbackId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                    request.resource.data.userId == request.auth.uid &&
+                    (request.resource.data.submittedAt == request.time || request.resource.data.submittedAt != null);
     }
 
     // Default lock down for any other collections

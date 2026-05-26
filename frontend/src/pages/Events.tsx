@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { EventCard } from '../components/ui/EventCard';
-import type { EventData } from '../components/ui/EventCard';
 import { Skeleton } from '../components/ui/Skeleton';
+import type { EventData, Registration } from '../types';
 import { db } from '../lib/firebase';
 import { 
   collection, 
@@ -16,7 +16,7 @@ export default function Events() {
   const { user } = useAuth();
   const [events, setEvents] = useState<EventData[]>([]);
   const [registrationCounts, setRegistrationCounts] = useState<Record<string, number>>({});
-  const [myRegistrations, setMyRegistrations] = useState<any[]>([]);
+  const [myRegistrations, setMyRegistrations] = useState<Registration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async () => {
@@ -39,7 +39,7 @@ export default function Events() {
       const fetchedRegistrations = regsSnap.docs.map(docSnap => ({
         id: docSnap.id,
         ...docSnap.data()
-      })) as any[];
+      })) as Registration[];
 
       // 3. Compute registration counts mapping
       const counts: Record<string, number> = {};
@@ -107,7 +107,7 @@ export default function Events() {
           userId: user.id,
           eventId: eventId,
           registeredAt: new Date().toISOString(),
-          status: 'INTERESTED',
+          status: 'REGISTERED',
           event: event
         });
       });
