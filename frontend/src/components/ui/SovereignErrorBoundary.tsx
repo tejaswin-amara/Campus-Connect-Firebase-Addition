@@ -24,6 +24,25 @@ export class SovereignErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Sovereign Error Boundary caught an exception:', error, errorInfo);
+    
+    // Auto-reload on chunk load failures to immediately recover the active student session
+    const errorText = (error.message || '') + (error.stack || '');
+    const isChunkLoadFail = 
+      errorText.includes('Failed to fetch dynamically imported module') ||
+      errorText.includes('ChunkLoadError') ||
+      errorText.includes('Loading chunk');
+
+    if (isChunkLoadFail) {
+      console.warn('Dynamic chunk load failure detected. Auto-reloading client to sync latest manifest...');
+      const lastReload = sessionStorage.getItem('cc_last_chunk_reload');
+      const now = Date.now();
+      
+      // Throttle reloads to at most once per 15 seconds to prevent infinite crash loops
+      if (!lastReload || now - parseInt(lastReload) > 15000) {
+        sessionStorage.setItem('cc_last_chunk_reload', now.toString());
+        window.location.reload();
+      }
+    }
   }
 
   private handleReset = () => {
