@@ -313,7 +313,6 @@ export function MainLayout({ children }: { children: ReactNode }) {
           </div>
           
           <div className="flex items-center gap-4">
-            <span className="text-xs text-muted-foreground font-semibold">FEDF 25CS1201E</span>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span>Made by</span>
               <a 
