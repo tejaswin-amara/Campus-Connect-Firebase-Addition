@@ -21,6 +21,9 @@ This file is a persistent ledger of architectural wins, failures, and "Aha!" mom
 | 2026-05-24 | Performance | **AGGRESSIVE ROUTE CODE-SPLITTING**: Implementing dynamic lazy routes in App.tsx reduced initial JS payload by nearly 50% (from 1,430kB to 744kB). | Refactored `App.tsx`. |
 | 2026-05-24 | QA | **SOVEREIGN EXCEPTION GUARD BOUNDARY**: Creating a custom component boundary captures render context exceptions, providing user fallback screens and diagnostic printouts. | Created `SovereignErrorBoundary.tsx`. |
 | 2026-05-24 | Git & Deploy | **OMNI-SYNC PARITY SYNC**: Set up a local bare Git repository as origin to sync the freshly-initialized repository and completed live production Firebase deploy, ensuring absolute parity. | Initialized and pushed main branch, ran deploy.ps1. |
+| 2026-05-26 | Security | **STORAGE & FIRESTORE HARDENING**: Closed wildcard anonymous rules in Firebase Storage, limiting writes to Admins (banners) and Owners (avatars). Restricted registrations writes/updates in Firestore to prevent student role/attendance privilege escalations. | Hardened firestore.rules and storage.rules. |
+| 2026-05-26 | Performance | **ANALYTICS CODE-SPLITTING**: Moved all ChartJS imports, setups, and qualitative review tables from Dashboard.tsx into AdminAnalyticsPanel.tsx to lazy-load them behind a dynamic Suspense boundary. | Created AdminAnalyticsPanel.tsx and cleaned Dashboard.tsx. |
+| 2026-05-26 | PWA | **MANIFEST SHORTCUTS & SCREENSHOTS**: Added PWA shortcuts for event searching and kiosk scanning, and integrated wide/narrow lighthouse display screenshots. | Refactored manifest.json. |
 
 ## 🚀 Optimization Hypotheses
 - *Hypothesis*: Adding domain-specific rules locally reduces agent confusion in complex monorepos.
