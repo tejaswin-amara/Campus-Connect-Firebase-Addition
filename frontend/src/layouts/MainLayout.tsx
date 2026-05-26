@@ -315,15 +315,15 @@ export function MainLayout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-4">
             <span className="text-xs text-muted-foreground font-semibold">FEDF 25CS1201E</span>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span>Architectured via</span>
+              <span>Made by</span>
               <a 
-                href="https://deerflow.tech" 
+                href="https://www.linkedin.com/in/tejaswin-amara" 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="inline-flex items-center gap-1 font-bold text-foreground/80 hover:text-primary transition-all duration-300 hover:scale-105"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                Deerflow
+                Tejaswin Amara
               </a>
             </div>
           </div>
