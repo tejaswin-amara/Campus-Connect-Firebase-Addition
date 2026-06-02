@@ -26,6 +26,7 @@ This file is a persistent ledger of architectural wins, failures, and "Aha!" mom
 | 2026-05-26 | PWA | **MANIFEST SHORTCUTS & SCREENSHOTS**: Added PWA shortcuts for event searching and kiosk scanning, and integrated wide/narrow lighthouse display screenshots. | Refactored manifest.json. |
 | 2026-06-01 | Web | **AI EVENT MATCHMAKER FEED**: Implemented lightweight scoring matchmaker algorithm with peer attendance overlays and seat velocity checks. Created modern glassmorphic feed UI in Dashboard with dynamic reasons. | Created matchmaker.ts, MatchmakerFeed.tsx and updated Dashboard.tsx. |
 | 2026-06-01 | A11y | **SCREEN READER ARIA ENRICHMENT**: Injected ARIA roles, descriptions, labels, focus states, and dynamic status announcements (`aria-live="polite"` / `role="alert"`) into all interactive event card features, recommendations, and Stripe checkout overlays, ensuring full WCAG keyboard navigation compliance. | Updated EventCard.tsx, MatchmakerFeed.tsx, AttendeePanelModal.tsx, StripeCheckoutModal.tsx, and Dashboard.tsx. |
+| 2026-06-02 | Deploy | **FREE-TIER TARGETED DEPLOYMENT**: Resolved Firebase Blaze plan restrictions on Cloud Build/Functions and unprovisioned Storage blockers by executing a targeted deploy (`--only hosting,firestore`) that successfully compiled React SPA client assets and released hardened database security rules/indexes directly. | Deployed SPA and firestore policies to Firebase campusconnect-afd1e. |
 
 ## 🚀 Optimization Hypotheses
 - *Hypothesis*: Adding domain-specific rules locally reduces agent confusion in complex monorepos.
