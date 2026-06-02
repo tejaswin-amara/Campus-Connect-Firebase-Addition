@@ -1,4 +1,4 @@
-# 🔱 SECRETS GOVERNANCE AND SENSITIVE DATA AXIOM (v12.1 ENTERPRISE)
+# 🔱 SECRETS GOVERNANCE AND SENSITIVE DATA AXIOM (v13.0.0-PRODUCTION)
 
 ## SECTION 1: STORAGE RESTRICTIONS
 1. Under no circumstances may any secret, API key, token, private key, or password be committed to version control.

@@ -11,6 +11,14 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0F0F13;color:#fafafa;font-family:system-ui,sans-serif;padding:2rem;text-align:center;">
+        <div style="max-width:400px;border:1px solid rgba(168,85,247,0.3);padding:2.5rem;border-radius:1rem;background:rgba(255,255,255,0.02);backdrop-filter:blur(10px);box-shadow:0 0 30px rgba(168,85,247,0.15);">
+          <h1 style="font-size:1.5rem;font-weight:900;margin-bottom:1rem;text-transform:uppercase;letter-spacing:0.1em;background:linear-gradient(to right, #a855f7, #06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">JavaScript Required</h1>
+          <p style="color:#999;font-size:0.875rem;line-height:1.6;margin-bottom:0;">Campus Connect requires JavaScript to initialize the high-fidelity UI and secure client auth engine. Please enable JavaScript in your browser settings to proceed.</p>
+        </div>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {

@@ -1,4 +1,4 @@
-﻿# CONTRACT Reference
+# CONTRACT Reference (v13.0.0-PRODUCTION)
 
 > [!IMPORTANT]
 > This file defers to the supreme CONTRACT at project root.

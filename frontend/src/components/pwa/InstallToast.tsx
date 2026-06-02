@@ -6,15 +6,24 @@ import { Button } from '../ui/Button';
  * Premium glassmorphic PWA installation prompt toast.
  * Listens for system beforeinstallprompt triggers and guides users into standalone native shells.
  */
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
+
 export function InstallToast() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
       // Prevent automatic browser banners
       e.preventDefault();
-      setDeferredPrompt(e);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
       setIsVisible(true);
     };
 

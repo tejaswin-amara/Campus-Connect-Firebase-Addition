@@ -2,14 +2,14 @@
 name: ghost-pilot
 description: Universal Execution Engine - Headless Autonomy
 ---
-# Ghost Pilot: Universal Autonomy (v12.0.0-ENTERPRISE Enterprise)
+# Ghost Pilot: Universal Autonomy (v13.0.0-PRODUCTION)
 
 ## Trigger Condition
 **Triggered by:** /ghost-pilot
 
 // turbo-all
 
-> The Absolute Autonomy Engine for the Sovereign v12.0.0-ENTERPRISE Infrastructure. This is the unified synthesis of DNA + Rules + Sentinel + 94 Intelligence Assets.
+> The Absolute Autonomy Engine for the Sovereign v13.0.0-PRODUCTION Infrastructure. This is the unified synthesis of DNA + Rules + Sentinel + 94 Intelligence Assets.
 
 ---
 
@@ -48,7 +48,7 @@ description: Universal Execution Engine - Headless Autonomy
 1.  **Capability Harvester**: Run `pwsh D:/Skills/sovereign.ps1` to find and sync relevant tools.
 2.  **Command Prefab**: Construct the terminal command using absolute Windows paths.
 3.  **Silent Execution**: Execute with `SafeToAutoRun: true`.
-4.  **Verification**: Run `doctor.ps1` or `sovereign-check.ps1` to ensure v12.0.0-ENTERPRISE compliance.
+4.  **Verification**: Run `doctor.ps1` or `sovereign-check.ps1` to ensure v13.0.0-PRODUCTION compliance.
 5.  **Truth Update**: Record outcomes in `learnings.md`.
 
 ## ✅ SUCCESS/FAILURE CRITERIA

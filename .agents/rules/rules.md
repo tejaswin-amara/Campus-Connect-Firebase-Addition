@@ -1,12 +1,12 @@
-# 🔱 SOVEREIGN BASE LAW (v12.0.0-ENTERPRISE ENTERPRISE -- HARDENED)
+# 🔱 SOVEREIGN BASE LAW (v13.0.0-PRODUCTION -- HARDENED)
 
 // turbo-all
 
 > [!IMPORTANT]
-> This is the supreme governance of the Sovereign v12.0.0-ENTERPRISE Infrastructure. Every turn MUST be initialized and validated through the **v12.0.0-ENTERPRISE Enterprise Sovereign Controller**.
+> This is the supreme governance of the Sovereign v13.0.0-PRODUCTION Infrastructure. Every turn MUST be initialized and validated through the **v13.0.0-PRODUCTION Sovereign Controller**.
 
 ## ⚖️ CANONICAL INITIALIZATION
-The system is anchored via the **v12.0.0-ENTERPRISE Unified Suite**:
+The system is anchored via the **v13.0.0-PRODUCTION Unified Suite**:
 - **Command**: `/sovereign`
 - **Logic**: Consolidated Sync + Doctor Check + Audit + Truth + Contract Verification.
 
@@ -41,11 +41,11 @@ pwsh -ExecutionPolicy Bypass -File "D:/Skills/sovereign.ps1"; pwsh -ExecutionPol
 ---
 
 ## 🏛️ DECLARATION
-    ✅ SOVEREIGN SYSTEM v12.0.0-ENTERPRISE ENTERPRISE HARDENED ONLINE.
-    Autonomous Trigger: `/sovereign` (v12.0.0-ENTERPRISE Unified Suite)
+    ✅ SOVEREIGN SYSTEM v13.0.0-PRODUCTION HARDENED ONLINE.
+    Autonomous Trigger: `/sovereign` (v13.0.0-PRODUCTION Unified Suite)
     94 Skills Certified | Zero Drift
 
-## Learned Invariants (v12.0.0-ENTERPRISE Final)
+## Learned Invariants (v13.0.0-PRODUCTION Final)
 - **A1: Direct-Path Standard**: Purge `npx` in MCP configs. Use absolute quoted `node.exe` paths for IPC stability.
 - **A2: CI/CD Proofing**: Enforce `DOCKER_BUILD=true` for Next.js 15 standalone generation.
 - **A3: Auth Localization**: All auth callbacks MUST be localization-prefixed (e.g., `/en/dashboard`).

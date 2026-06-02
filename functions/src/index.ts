@@ -206,10 +206,6 @@ export const onRegistrationCreated = onDocumentCreated('registrations/{registrat
   if (status !== 'REGISTERED') return;
 
   try {
-    // 1. Fetch user name
-    const userSnap = await db.collection('users').doc(userId).get();
-    const username = userSnap.exists ? (userSnap.data()?.username || 'A student') : 'A student';
-
     // 2. Fetch event title
     const eventSnap = await db.collection('events').doc(String(eventId)).get();
     if (!eventSnap.exists) return;
@@ -233,13 +229,23 @@ export const onRegistrationCreated = onDocumentCreated('registrations/{registrat
       const peerIds = peersSnap.docs.map(d => d.data().userId).filter(Boolean);
 
       if (peerIds.length > 0) {
-        const regsSnap = await db.collection('registrations')
-          .where('eventId', '==', eventId)
-          .where('userId', 'in', peerIds)
-          .where('status', '==', 'REGISTERED')
-          .get();
+        // Chunk peerIds in batches of 30 due to Firestore "in" query limits
+        const chunkedPeerIds: string[][] = [];
+        for (let i = 0; i < peerIds.length; i += 30) {
+          chunkedPeerIds.push(peerIds.slice(i, i + 30));
+        }
 
-        const registeredPeerCount = regsSnap.size;
+        const queryPromises = chunkedPeerIds.map(async (chunk) => {
+          const regsSnap = await db.collection('registrations')
+            .where('eventId', '==', eventId)
+            .where('userId', 'in', chunk)
+            .where('status', '==', 'REGISTERED')
+            .get();
+          return regsSnap.size;
+        });
+
+        const sizes = await Promise.all(queryPromises);
+        const registeredPeerCount = sizes.reduce((acc, curr) => acc + curr, 0);
 
         if (registeredPeerCount >= 3) {
           // Send notification to parentUser
@@ -331,7 +337,7 @@ export const createStripeCheckoutSession = onRequest(async (req, res) => {
   }
 
   try {
-    const { eventId, userId, ticketPrice, eventTitle } = req.body;
+    const { eventId, userId, ticketPrice } = req.body;
     if (!eventId || !userId || !ticketPrice) {
       res.status(400).send({ error: 'Missing parameters eventId, userId, or ticketPrice' });
       return;

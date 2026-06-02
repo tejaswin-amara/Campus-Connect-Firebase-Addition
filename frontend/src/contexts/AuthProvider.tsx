@@ -34,9 +34,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             username = data.username || username;
           } else {
             // New user registration flow
-            // Whitelist typical admin emails
+            // Whitelist typical admin emails strictly via explicit allow-list or exact matches
             const email = firebaseUser.email?.toLowerCase() || '';
-            if (email.includes('admin') || email === 'admin@campusconnect.edu' || email === 'admin@gmail.com') {
+            const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
+              .split(',')
+              .map((e: string) => e.trim().toLowerCase())
+              .filter(Boolean);
+            
+            if (ADMIN_EMAILS.includes(email)) {
+              role = 'ADMIN';
+            } else if (email === 'admin@campusconnect.edu' || email === 'admin@gmail.com') {
               role = 'ADMIN';
             }
             

@@ -1,13 +1,13 @@
 {
-  "LastHarvest": "2026-05-24T09:50:30.5137729+05:30",
-  "MatchedSkills": 4,
+  "LocalFiles": 127,
   "ProjectDomain": "Web",
-  "GlobalSkills": 108,
+  "MatchedSkills": 5,
+  "GlobalSkills": 112,
+  "LastHarvest": "2026-06-01T10:56:35.6511751+05:30",
   "DetectedTags": [
     "react",
     "tailwindcss",
     "vitest"
   ],
-  "LocalFiles": 110,
-  "Version": "12.2.0-PRODUCTION"
+  "Version": "13.0.0-PRODUCTION"
 }

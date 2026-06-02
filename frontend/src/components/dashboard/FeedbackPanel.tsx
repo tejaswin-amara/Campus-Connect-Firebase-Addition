@@ -55,14 +55,21 @@ export function FeedbackPanel({
 
         <form onSubmit={handleSubmit} className="w-full mt-6 space-y-4">
           {/* Star selector */}
-          <div className="flex justify-center gap-2">
+          <div 
+            className="flex justify-center gap-2" 
+            role="radiogroup" 
+            aria-label="Event rating from 1 to 5 stars"
+          >
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 type="button"
                 key={star}
                 onClick={() => setRating(star)}
+                role="radio"
+                aria-checked={star === rating}
+                aria-label={`${star} Star${star > 1 ? 's' : ''}`}
                 className={cn(
-                  "text-3xl transition-transform duration-200 hover:scale-125 cursor-pointer active:scale-95",
+                  "text-3xl transition-transform duration-200 hover:scale-125 cursor-pointer active:scale-95 focus:outline-none focus:scale-125",
                   star <= rating ? "text-amber-400" : "text-slate-600"
                 )}
               >

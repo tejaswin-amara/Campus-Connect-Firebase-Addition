@@ -17,7 +17,11 @@ import { getHaversineDistance, KLH_COORDINATES, GEOFENCE_RADIUS_METERS } from '.
 import { useTemporalConflict } from '../hooks/useTemporalConflict';
 import { SquadPanel } from '../components/dashboard/SquadPanel';
 import { FeedbackPanel } from '../components/dashboard/FeedbackPanel';
-import type { EventData, Registration, PeerRelation } from '../types';
+import { StripeCheckoutModal } from '../components/dashboard/StripeCheckoutModal';
+import { AttendeePanelModal } from '../components/dashboard/AttendeePanelModal';
+import { MatchmakerFeed } from '../components/dashboard/MatchmakerFeed';
+import { getRecommendations } from '../utils/matchmaker';
+import type { EventData, Registration, PeerRelation, FeedbackRating } from '../types';
 import { 
   collection, 
   getDocs, 
@@ -141,12 +145,12 @@ export default function Dashboard() {
 
   // Squad Connections States
   const [myPeers, setMyPeers] = useState<PeerRelation[]>([]);
-  const [peerRegistrations, setPeerRegistrations] = useState<any[]>([]);
+  const [peerRegistrations, setPeerRegistrations] = useState<Registration[]>([]);
 
   // Admin Tab & Analytic States
   const [activeAdminTab, setActiveAdminTab] = useState<'catalog' | 'analytics'>('catalog');
   const [adminRegistrations, setAdminRegistrations] = useState<Registration[]>([]);
-  const [adminFeedback, setAdminFeedback] = useState<any[]>([]);
+  const [adminFeedback, setAdminFeedback] = useState<FeedbackRating[]>([]);
 
   // Post-Event Feedback States
   const [feedbackSubmittedIds, setFeedbackSubmittedIds] = useState<string[]>([]);
@@ -154,6 +158,13 @@ export default function Dashboard() {
 
   // Geo-Fenced Access Control State
   const [isOnCampus, setIsOnCampus] = useState<boolean | null>(null);
+
+  // Admin Attendee Modal States
+  const [isAttendeesModalOpen, setIsAttendeesModalOpen] = useState(false);
+  const [selectedAttendeesEvent, setSelectedAttendeesEvent] = useState<EventData | null>(null);
+  const [attendeeSearchQuery, setAttendeeSearchQuery] = useState('');
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+  const attendeesModalRef = useRef<HTMLDivElement>(null);
 
   // Initialize Cloud Messaging device token hook
   useFCM(user?.id);
@@ -205,7 +216,7 @@ export default function Dashboard() {
       fetchedEvents.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
 
       let totalRegistrations = 0;
-      let studentRegs: any[] = [];
+      let studentRegs: Registration[] = [];
       const counts: Record<string, number> = {};
 
       if (user.role === 'ADMIN') {
@@ -226,7 +237,7 @@ export default function Dashboard() {
         studentRegs = regsSnap.docs.map(docSnap => ({
           id: docSnap.id,
           ...docSnap.data()
-        })) as any[];
+        })) as Registration[];
         
         totalRegistrations = studentRegs.length;
         
@@ -239,7 +250,7 @@ export default function Dashboard() {
         // Dynamic Mathematical Streak & Multiplier calculation (7-day resets)
         const attendedRegs = studentRegs
           .filter(r => r.status === 'ATTENDED' && r.attendedAt)
-          .map(r => new Date(r.attendedAt).getTime())
+          .map(r => new Date(r.attendedAt!).getTime())
           .sort((a, b) => a - b); // oldest to newest
 
         if (attendedRegs.length === 0) {
@@ -281,23 +292,23 @@ export default function Dashboard() {
           const peersList = peersSnap.docs.map(docSnap => ({
             id: docSnap.id,
             ...docSnap.data()
-          }));
+          })) as PeerRelation[];
           setMyPeers(peersList);
 
-          const peerIds = peersList.map((p: any) => p.userId).filter(Boolean);
+          const peerIds = peersList.map((p: PeerRelation) => p.userId).filter(Boolean) as string[];
           if (peerIds.length > 0) {
             const chunkedPeerIds = [];
             for (let i = 0; i < peerIds.length; i += 30) {
               chunkedPeerIds.push(peerIds.slice(i, i + 30));
             }
 
-            let allPeerRegs: any[] = [];
+            let allPeerRegs: Registration[] = [];
             for (const idsChunk of chunkedPeerIds) {
               const peerRegsSnap = await getDocs(query(
                 collection(db, 'registrations'),
                 where('userId', 'in', idsChunk)
               ));
-              const chunkRegs = peerRegsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+              const chunkRegs = peerRegsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Registration));
               allPeerRegs = [...allPeerRegs, ...chunkRegs];
             }
             setPeerRegistrations(allPeerRegs);
@@ -321,7 +332,7 @@ export default function Dashboard() {
           setAdminRegistrations(allRegs);
 
           const allFeedbackSnap = await getDocs(collection(db, 'feedback'));
-          const allFeedback = allFeedbackSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const allFeedback = allFeedbackSnap.docs.map(d => ({ id: d.id, ...d.data() } as FeedbackRating));
           setAdminFeedback(allFeedback);
         } catch (adminErr) {
           console.warn('Failed to load analytics data for admin:', adminErr);
@@ -742,6 +753,236 @@ export default function Dashboard() {
     }
   }, [user, checkoutEvent, checkoutCardNumber, checkoutCardExpiry, checkoutCardCVV, fetchData]);
 
+  // Open Attendee Panel Modal
+  const handleOpenAttendeesPanel = useCallback((eventId: string | number) => {
+    const event = events.find(e => e.id === eventId);
+    if (event) {
+      setSelectedAttendeesEvent(event);
+      setAttendeeSearchQuery('');
+      setIsAttendeesModalOpen(true);
+    }
+  }, [events]);
+
+  // Admin downloading individual certificate for any ATTENDED student
+  const handleDownloadStudentCertificate = useCallback(async (studentId: string, studentName: string, eventId: string | number) => {
+    try {
+      const event = events.find(e => e.id === eventId);
+      const reg = adminRegistrations.find(r => r.eventId === eventId && r.userId === studentId);
+      if (!event || !reg) return;
+
+      const { jsPDF } = await import('jspdf');
+
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const width = doc.internal.pageSize.getWidth();
+      const height = doc.internal.pageSize.getHeight();
+
+      // 1. Premium deep-space void background
+      doc.setFillColor(15, 15, 19);
+      doc.rect(0, 0, width, height, 'F');
+
+      // 2. Glow-accent border indicators
+      doc.setDrawColor(168, 85, 247); // Purple
+      doc.setLineWidth(1.5);
+      doc.rect(8, 8, width - 16, height - 16, 'D');
+
+      doc.setDrawColor(6, 182, 212); // Cyan
+      doc.setLineWidth(0.5);
+      doc.rect(10, 10, width - 20, height - 20, 'D');
+
+      // 3. Header title details
+      doc.setTextColor(168, 85, 247);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(28);
+      doc.text('CAMPUS CONNECT', width / 2, 35, { align: 'center' });
+
+      doc.setTextColor(241, 245, 249);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(14);
+      doc.text('KLH UNIVERSITY ACADEMIC EVENT ECOSYSTEM', width / 2, 45, { align: 'center' });
+
+      // 4. Verification title
+      doc.setFontSize(18);
+      doc.setTextColor(156, 163, 175);
+      doc.text('VERIFIABLE DIGITAL CERTIFICATE OF PARTICIPATION', width / 2, 70, { align: 'center' });
+
+      doc.setFontSize(14);
+      doc.text('This document verifies that', width / 2, 85, { align: 'center' });
+
+      // 5. Student Name (Neon white)
+      doc.setFontSize(32);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.text(studentName.toUpperCase(), width / 2, 102, { align: 'center' });
+
+      doc.setDrawColor(168, 85, 247);
+      doc.setLineWidth(1.2);
+      doc.line(width / 2 - 50, 108, width / 2 + 50, 108);
+
+      // 6. Attendance verification statement
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(156, 163, 175);
+      doc.text('has successfully attended the university event', width / 2, 122, { align: 'center' });
+
+      doc.setFontSize(20);
+      doc.setTextColor(6, 182, 212);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`"${event.title}"`, width / 2, 136, { align: 'center' });
+
+      // 7. Event date stamps
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(156, 163, 175);
+      const formattedDate = new Date(event.dateTime).toLocaleDateString(undefined, {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+      doc.text(`Completed on ${formattedDate}`, width / 2, 148, { align: 'center' });
+
+      // 8. Cryptographic verification credentials footer
+      doc.setDrawColor(255, 255, 255, 0.1);
+      doc.rect(width / 2 - 120, 165, 240, 25, 'D');
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(100, 116, 139);
+      doc.text(`VERIFIABLE CREDENTIAL ID: ${reg.id}`, width / 2, 175, { align: 'center' });
+      doc.text('SECURED VIA CLOUD FIRESTORE AUTHENTICATION KEYS', width / 2, 182, { align: 'center' });
+
+      // 9. Save PDF locally
+      const sanitizedTitle = event.title.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      const sanitizedName = studentName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      doc.save(`${sanitizedName}_${sanitizedTitle}_certificate.pdf`);
+
+    } catch (err) {
+      console.error('Failed to generate student certificate:', err);
+      alert('Failed to generate credential certificate.');
+    }
+  }, [events, adminRegistrations]);
+
+  // Admin bulk downloading certificates with throttled loop to keep thread responsive
+  const handleBulkDownloadCertificates = useCallback(async (eventId: string | number) => {
+    const event = events.find(e => e.id === eventId);
+    if (!event) return;
+
+    const attendees = adminRegistrations.filter(r => r.eventId === eventId && r.status === 'ATTENDED');
+    if (attendees.length === 0) {
+      alert('There are no students marked as "ATTENDED" for this event.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to download certificates for all ${attendees.length} attended students? This will prompt sequential file downloads.`)) {
+      return;
+    }
+
+    setIsBulkProcessing(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+
+      for (let i = 0; i < attendees.length; i++) {
+        const reg = attendees[i];
+        const studentName = reg.username || reg.userId;
+
+        const doc = new jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const width = doc.internal.pageSize.getWidth();
+        const height = doc.internal.pageSize.getHeight();
+
+        // Background
+        doc.setFillColor(15, 15, 19);
+        doc.rect(0, 0, width, height, 'F');
+
+        // Borders
+        doc.setDrawColor(168, 85, 247);
+        doc.setLineWidth(1.5);
+        doc.rect(8, 8, width - 16, height - 16, 'D');
+        doc.setDrawColor(6, 182, 212);
+        doc.setLineWidth(0.5);
+        doc.rect(10, 10, width - 20, height - 20, 'D');
+
+        // Header
+        doc.setTextColor(168, 85, 247);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(28);
+        doc.text('CAMPUS CONNECT', width / 2, 35, { align: 'center' });
+
+        doc.setTextColor(241, 245, 249);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(14);
+        doc.text('KLH UNIVERSITY ACADEMIC EVENT ECOSYSTEM', width / 2, 45, { align: 'center' });
+
+        // Verifiable Credential Label
+        doc.setFontSize(18);
+        doc.setTextColor(156, 163, 175);
+        doc.text('VERIFIABLE DIGITAL CERTIFICATE OF PARTICIPATION', width / 2, 70, { align: 'center' });
+        doc.setFontSize(14);
+        doc.text('This document verifies that', width / 2, 85, { align: 'center' });
+
+        // Student Name
+        doc.setFontSize(32);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.text(studentName.toUpperCase(), width / 2, 102, { align: 'center' });
+
+        doc.setDrawColor(168, 85, 247);
+        doc.setLineWidth(1.2);
+        doc.line(width / 2 - 50, 108, width / 2 + 50, 108);
+
+        // Verification Statement
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(156, 163, 175);
+        doc.text('has successfully attended the university event', width / 2, 122, { align: 'center' });
+
+        doc.setFontSize(20);
+        doc.setTextColor(6, 182, 212);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`"${event.title}"`, width / 2, 136, { align: 'center' });
+
+        // Completed Date
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(156, 163, 175);
+        const formattedDate = new Date(event.dateTime).toLocaleDateString(undefined, {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+        doc.text(`Completed on ${formattedDate}`, width / 2, 148, { align: 'center' });
+
+        // Credential footer
+        doc.setDrawColor(255, 255, 255, 0.1);
+        doc.rect(width / 2 - 120, 165, 240, 25, 'D');
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(100, 116, 139);
+        doc.text(`VERIFIABLE CREDENTIAL ID: ${reg.id}`, width / 2, 175, { align: 'center' });
+        doc.text('SECURED VIA CLOUD FIRESTORE AUTHENTICATION KEYS', width / 2, 182, { align: 'center' });
+
+        // Save PDF
+        const sanitizedTitle = event.title.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+        const sanitizedName = studentName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+        doc.save(`${sanitizedName}_${sanitizedTitle}_certificate.pdf`);
+
+        // Throttle downloads by 250ms to let browser events pump cleanly
+        await new Promise(r => setTimeout(r, 250));
+      }
+      alert(`Success! Successfully generated and downloaded ${attendees.length} certificates.`);
+    } catch (err) {
+      console.error('Bulk generation failed:', err);
+      alert('An error occurred during bulk certificate export.');
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  }, [events, adminRegistrations]);
+
   // Compile verifiable Participation PDF Certificates on the client
   const handleDownloadCertificate = useCallback(async (eventId: string | number) => {
     try {
@@ -939,6 +1180,12 @@ export default function Dashboard() {
     return map;
   }, [events, peerRegistrations, myPeers]);
 
+  // AI Matchmaker Recommendations Feed computation
+  const recommendedEvents = useMemo(() => {
+    if (user?.role !== 'STUDENT') return [];
+    return getRecommendations(events, myRegistrations, myPeers, peerRegistrations);
+  }, [events, myRegistrations, myPeers, peerRegistrations, user]);
+
   // Stable callback handler for viewing dynamic tickets
   const handleViewPass = useCallback((eventId: string | number) => {
     const event = events.find(e => e.id === eventId);
@@ -1034,7 +1281,7 @@ export default function Dashboard() {
     }
   }, [user, checkGeofence]);
 
-  // A11y keyboard dismiss for local dashboard overlay modals
+  // A11y keyboard dismiss for local dashboard dashboard overlay modals
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -1045,12 +1292,15 @@ export default function Dashboard() {
           setCheckoutEvent(null);
         } else if (conflictWarning?.isOpen) {
           setConflictWarning(null);
+        } else if (isAttendeesModalOpen) {
+          setIsAttendeesModalOpen(false);
+          setSelectedAttendeesEvent(null);
         }
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isModalOpen, isCheckoutOpen, conflictWarning]);
+  }, [isModalOpen, isCheckoutOpen, conflictWarning, isAttendeesModalOpen]);
 
   // Focus trapping for Event Form Modal
   useEffect(() => {
@@ -1133,6 +1383,47 @@ export default function Dashboard() {
     
     return () => window.removeEventListener('keydown', handleCheckoutFocusTrap);
   }, [isCheckoutOpen]);
+
+  // Focus trapping for Attendees Modal
+  useEffect(() => {
+    if (!isAttendeesModalOpen || !attendeesModalRef.current) return;
+    
+    const handleAttendeesFocusTrap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      
+      const focusable = attendeesModalRef.current?.querySelectorAll(
+        'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex="0"], [contenteditable]'
+      );
+      if (!focusable || focusable.length === 0) return;
+      
+      const first = focusable[0] as HTMLElement;
+      const last = focusable[focusable.length - 1] as HTMLElement;
+      
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          last.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === last) {
+          first.focus();
+          e.preventDefault();
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleAttendeesFocusTrap);
+    
+    // Auto-focus search input when attendees modal opens
+    const searchInput = attendeesModalRef.current.querySelector('#attendee-search-input') as HTMLElement;
+    if (searchInput) {
+      searchInput.focus();
+    } else {
+      attendeesModalRef.current.focus();
+    }
+    
+    return () => window.removeEventListener('keydown', handleAttendeesFocusTrap);
+  }, [isAttendeesModalOpen]);
 
   // Filtering events based on user input queries with useMemo
   const filteredEvents = useMemo(() => {
@@ -1384,7 +1675,20 @@ export default function Dashboard() {
 
       {/* Student stats / Registered list & Squad Grid Layout */}
       {user?.role === 'STUDENT' && (
-        <motion.div variants={itemVariants} className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6">
+          {/* AI Matchmaker Feed */}
+          {recommendedEvents.length > 0 && (
+            <motion.div variants={itemVariants}>
+              <MatchmakerFeed 
+                recommendations={recommendedEvents}
+                onRegister={handleRegister}
+                registrationCounts={registrationCounts}
+                peerAttendeesMap={eventPeerAttendeesMap}
+              />
+            </motion.div>
+          )}
+
+          <motion.div variants={itemVariants} className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             <div className="flex items-center justify-between gap-2.5 flex-wrap">
               <div className="flex items-center gap-2.5">
@@ -1393,12 +1697,17 @@ export default function Dashboard() {
               </div>
               {/* Geofence Status Indicator */}
               {isOnCampus !== null && (
-                <div className={cn(
-                  "px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-md border flex items-center gap-1.5 animate-pulse",
-                  isOnCampus 
-                    ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-400" 
-                    : "bg-red-500/10 border-red-500/35 text-red-400"
-                )}>
+                <div 
+                  role="status"
+                  aria-live="polite"
+                  aria-label={`Geofence location status: ${isOnCampus ? 'On Campus' : 'Off Campus'}`}
+                  className={cn(
+                    "px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-md border flex items-center gap-1.5 animate-pulse",
+                    isOnCampus 
+                      ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-400" 
+                      : "bg-red-500/10 border-red-500/35 text-red-400"
+                  )}
+                >
                   <span>{isOnCampus ? '📍 On Campus' : '📍 Off Campus'}</span>
                 </div>
               )}
@@ -1406,7 +1715,11 @@ export default function Dashboard() {
 
             {/* Geofence Warning Box */}
             {isOnCampus === false && (
-              <div className="p-4 rounded-xl border border-red-500/20 bg-red-950/10 text-red-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_0_15px_rgba(239,68,68,0.05)] animate-in slide-in-from-top-3 duration-300">
+              <div 
+                role="alert" 
+                aria-label="Location Verification Warning"
+                className="p-4 rounded-xl border border-red-500/20 bg-red-950/10 text-red-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_0_15px_rgba(239,68,68,0.05)] animate-in slide-in-from-top-3 duration-300"
+              >
                 <div>
                   <p className="font-extrabold uppercase tracking-wider text-[10px] text-red-400">Location Verification Failed</p>
                   <p className="mt-0.5 text-[11px] opacity-80 leading-relaxed">Passes are geofenced for verification security. You must be physically present at the Bachupally campus (within 100m) to unlock your active passes.</p>
@@ -1414,6 +1727,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setIsOnCampus(true)}
+                  aria-label="Override current geofence and simulate on campus location status"
                   className="px-3 py-1.5 rounded-lg border border-red-500/35 bg-red-500/15 hover:bg-red-500/25 active:scale-95 duration-200 text-[10px] font-black uppercase tracking-wider shrink-0 cursor-pointer"
                 >
                   Override Geofence ⚙️
@@ -1461,7 +1775,8 @@ export default function Dashboard() {
             myPeers={myPeers}
             onAddPeer={handleAddPeer}
           />
-        </motion.div>
+          </motion.div>
+        </div>
       )}
 
       {/* Main events panel with search controls */}
@@ -1520,6 +1835,7 @@ export default function Dashboard() {
                   onDownloadCertificate={handleDownloadCertificate}
                   onEdit={openEditModal}
                   onDelete={handleDeleteEvent}
+                  onViewAttendees={handleOpenAttendeesPanel}
                   isAdmin={user?.role === 'ADMIN'}
                   registeredCount={registrationCounts[event.id as string] || 0}
                   isRegistered={registeredIds.includes(event.id) && reg?.status !== 'WAITLISTED'}
@@ -1538,22 +1854,28 @@ export default function Dashboard() {
 
       {/* Creation & Editing Modal Form */}
       {isModalOpen && (
-        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md overflow-y-auto">
+        <div 
+          role="dialog" 
+          aria-modal="true" 
+          aria-labelledby="event-creation-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md overflow-y-auto"
+        >
           <div ref={formModalRef} tabIndex={-1} className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl glass border-primary/30 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 outline-none">
             
             {/* Glow Accent Header */}
-            <div className="h-1 w-full bg-gradient-to-r from-primary via-purple-500 to-cyan-500" />
+            <div className="h-1 w-full bg-gradient-to-r from-primary via-purple-500 to-cyan-500" aria-hidden="true" />
 
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border/40 px-6 py-4 bg-background/50">
-              <h3 className="text-lg font-bold tracking-tight">
+              <h3 id="event-creation-title" className="text-lg font-bold tracking-tight">
                 {editingEvent ? 'Edit Event Details' : 'Create New Campus Event'}
               </h3>
               <button 
                 onClick={() => setIsModalOpen(false)}
+                aria-label="Close event creation dialog"
                 className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
-                <X className="h-4.5 w-4.5" />
+                <X className="h-4.5 w-4.5" aria-hidden="true" />
               </button>
             </div>
 
@@ -1847,137 +2169,26 @@ export default function Dashboard() {
       )}
 
       {/* Stripe elements simulated checkout overlay */}
-      {isCheckoutOpen && checkoutEvent && (
-        <div role="dialog" aria-modal="true" className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div ref={checkoutModalRef} tabIndex={-1} className="relative w-full max-w-md rounded-2xl glass border-cyan-500/30 bg-[#0F0F13]/95 shadow-2xl p-6 flex flex-col animate-in zoom-in-95 duration-200 outline-none">
-            {/* Ambient neon styling indicator */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-primary rounded-t-2xl" />
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border/40 pb-4 mb-4">
-              <div>
-                <h3 className="text-md font-black tracking-tight text-foreground uppercase">Premium Checkout</h3>
-                <p className="text-[10px] text-muted-foreground">Secured via Stripe Elements 💳</p>
-              </div>
-              <button 
-                onClick={() => {
-                  setIsCheckoutOpen(false);
-                  setCheckoutEvent(null);
-                }}
-                className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                <X className="h-4.5 w-4.5" />
-              </button>
-            </div>
-
-            {/* Event pricing Summary */}
-            <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black text-foreground truncate max-w-[250px]">{checkoutEvent.title}</p>
-                <p className="text-[9px] text-muted-foreground">📍 {checkoutEvent.venue}</p>
-              </div>
-              <div className="text-right">
-                <span className="text-xs text-muted-foreground block font-bold">Total Price</span>
-                <span className="text-lg font-black text-cyan-400">₹{checkoutEvent.ticketPrice}</span>
-              </div>
-            </div>
-
-            {checkoutError && (
-              <div className="p-3 text-xs font-bold text-destructive-foreground bg-destructive/90 rounded-xl border border-destructive/30 mb-4 flex items-center gap-2 animate-pulse">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                {checkoutError}
-              </div>
-            )}
-
-            {/* Stripe Card Elements Fields */}
-            <form onSubmit={handleCheckoutSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label htmlFor="stripe-name-input" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Cardholder Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  id="stripe-name-input"
-                  value={checkoutCardName}
-                  onChange={(e) => setCheckoutCardName(e.target.value)}
-                  placeholder="e.g. Rahul Sharma"
-                  className="cyber-input h-10 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="stripe-number-input" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Card Number
-                </label>
-                <input
-                  type="text"
-                  required
-                  maxLength={19}
-                  id="stripe-number-input"
-                  value={checkoutCardNumber}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '').substring(0, 16);
-                    const formatted = val.match(/.{1,4}/g)?.join(' ') || val;
-                    setCheckoutCardNumber(formatted);
-                  }}
-                  placeholder="4242 4242 4242 4242"
-                  className="cyber-input h-10 text-xs font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label htmlFor="stripe-expiry-input" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    Expiration Date
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={5}
-                    id="stripe-expiry-input"
-                    value={checkoutCardExpiry}
-                    onChange={(e) => {
-                      let val = e.target.value.replace(/\D/g, '').substring(0, 4);
-                      if (val.length >= 2) {
-                        val = `${val.substring(0, 2)}/${val.substring(2)}`;
-                      }
-                      setCheckoutCardExpiry(val);
-                    }}
-                    placeholder="MM/YY"
-                    className="cyber-input h-10 text-xs font-mono"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="stripe-cvv-input" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    CVV/CVC
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    maxLength={3}
-                    id="stripe-cvv-input"
-                    value={checkoutCardCVV}
-                    onChange={(e) => setCheckoutCardCVV(e.target.value.replace(/\D/g, ''))}
-                    placeholder="***"
-                    className="cyber-input h-10 text-xs font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Checkout CTA */}
-              <button
-                type="submit"
-                disabled={isProcessingPayment}
-                className="w-full mt-4 h-11 bg-gradient-to-r from-cyan-500 to-primary hover:brightness-115 text-primary-foreground font-black text-xs uppercase tracking-wider rounded-xl transition-all duration-300 hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] disabled:opacity-50 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                {isProcessingPayment ? 'Processing...' : `Pay & Register • ₹${checkoutEvent.ticketPrice}`}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      <StripeCheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => {
+          setIsCheckoutOpen(false);
+          setCheckoutEvent(null);
+        }}
+        checkoutEvent={checkoutEvent}
+        checkoutCardName={checkoutCardName}
+        setCheckoutCardName={setCheckoutCardName}
+        checkoutCardNumber={checkoutCardNumber}
+        setCheckoutCardNumber={setCheckoutCardNumber}
+        checkoutCardExpiry={checkoutCardExpiry}
+        setCheckoutCardExpiry={setCheckoutCardExpiry}
+        checkoutCardCVV={checkoutCardCVV}
+        setCheckoutCardCVV={setCheckoutCardCVV}
+        isProcessingPayment={isProcessingPayment}
+        checkoutError={checkoutError}
+        onSubmit={handleCheckoutSubmit}
+        modalRef={checkoutModalRef}
+      />
 
       {/* Edge access control ticket pass and scanner modals */}
       {isTicketOpen && selectedTicketEvent && user && (
@@ -2036,6 +2247,23 @@ export default function Dashboard() {
           onSkip={handleSkipFeedback}
         />
       )}
+
+      {/* Admin Attendee Panel Modal */}
+      <AttendeePanelModal
+        isOpen={isAttendeesModalOpen}
+        onClose={() => {
+          setIsAttendeesModalOpen(false);
+          setSelectedAttendeesEvent(null);
+        }}
+        selectedAttendeesEvent={selectedAttendeesEvent}
+        attendeeSearchQuery={attendeeSearchQuery}
+        setAttendeeSearchQuery={setAttendeeSearchQuery}
+        isBulkProcessing={isBulkProcessing}
+        adminRegistrations={adminRegistrations}
+        handleBulkDownloadCertificates={handleBulkDownloadCertificates}
+        handleDownloadStudentCertificate={handleDownloadStudentCertificate}
+        modalRef={attendeesModalRef}
+      />
     </motion.div>
   );
 }

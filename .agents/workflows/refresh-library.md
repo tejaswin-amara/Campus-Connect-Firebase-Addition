@@ -2,7 +2,7 @@
 name: refresh-library
 description: Global Skill Library Synchronization
 ---
-# Refresh Library: Global Asset Sync (v12.0.0-ENTERPRISE Enterprise)
+# Refresh Library: Global Asset Sync (v13.0.0-PRODUCTION)
 
 ## Trigger Condition
 **Triggered by:** /refresh-library
@@ -20,7 +20,7 @@ description: Global Skill Library Synchronization
 5. **Zero-Review:** Complete the entire process without waiting for user confirmation.
 
 ## 🏛️ DECLARATION
-✅ LIBRARY SYNC v12.0.0-ENTERPRISE ENTERPRISE ACTIVE.
+✅ LIBRARY SYNC v13.0.0-PRODUCTION ACTIVE.
 
 ## Exact Step-by-Step Execution
 1.  **Phase 1: Discovery**

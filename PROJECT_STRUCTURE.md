@@ -1,122 +1,47 @@
 # 📂 Project Structure
 
-This document provides a detailed breakdown of the **CampusConnect** codebase, organized by responsibility and layer.
+This document provides a detailed breakdown of the **CampusConnect** serverless codebase, organized by responsibility and layer.
 
 ## Project Root
 
 | File / Directory | Purpose |
 | :--- | :--- |
-| `pom.xml` | Maven configuration, dependencies, and build settings |
-| `Dockerfile` | Multi-stage Docker build (build + runtime) |
-| `docker-compose.yml` | Full-stack local development (MySQL + App) |
-| `run_app.ps1` / `stop_app.ps1` | PowerShell convenience scripts for local dev |
-| `README.md` | Project overview, setup, and deployment guide |
-| `TECHNICAL_GUIDE.md` | In-depth architecture and implementation details |
-| `CONTRIBUTING.md` | Contributor workflow and guidelines |
-| `SECURITY.md` | Responsible disclosure policy |
-| `LICENSE` | MIT License |
+| `Dockerfile` | Hardened Nginx multi-stage build configuration |
+| `docker-compose.yml` | Convenience local composition running the built React client |
+| `firebase.json` | Global Firebase config specifying Hosting, Firestore, and Cloud Functions |
+| `firestore.rules` | Hardened Firestore database transaction policies |
+| `storage.rules` | Hardened Cloud Storage size & MIME filter policies |
+| `run_app.ps1` / `stop_app.ps1` | Lifecycle convenience scripts to spin up Vite and Local Emulators |
+| `deploy.ps1` | Production release orchestrator |
+| `README.md` | Core overview, architecture, and developer onboarding guides |
+| `PROJECT_STRUCTURE.md` | This directory map |
+| `TECHNICAL_GUIDE.md` | Structural and algorithmic guide for developers |
+| `.agents/` | Hardened system governance rules, workflows, and learning manifests |
 
 ---
 
-## 📦 Backend (`src/main/java/com/tejaswin/campus`)
+## ⚛️ Frontend React SPA (`/frontend`)
 
-The Java source code follows a clean 3-tier architecture:
+The frontend contains the single-page application built via React 19, Vite 8, and Tailwind CSS v4.
 
-### 🧩 Models (`/model`)
-
-Entities representing the database schema.
-
-- `User.java` — Admin and Student users with role-based access.
-- `Event.java` — Main event entity (title, date, venue, category, image, capacity).
-- `Registration.java` — Links users to events for interest tracking and analytics.
-
-### 💾 Repositories (`/repository`)
-
-JPA interfaces for database communication.
-
-- `UserRepository.java` — User queries and lookups.
-- `EventRepository.java` — Event CRUD and filtered queries.
-- `RegistrationRepository.java` — Registration tracking and analytics.
-
-### ⚙️ Services (`/service`)
-
-Business logic layer.
-
-- `EventService.java` — CSV exports, image handling, N+1 query optimization, event registration.
-- `UserService.java` — User authentication, role management, BCrypt hashing.
-- `RegistrationService.java` — Event registration logic with circuit breaker resilience.
-
-### 🎮 Controllers (`/controller`)
-
-HTTP request handlers.
-
-- `AuthController.java` — Login/Logout for Students and Admins.
-- `EventController.java` — Student Dashboard and event engagement.
-- `AdminController.java` — Admin Dashboard (CRUD, Analytics, CSV Exports).
-
-### 🔒 Security (`/security`)
-
-- `SecurityConfig.java` — Spring Security filter chain, CSRF, session, and role-based access configuration.
-- `RateLimitingFilter.java` — Bucket4j-based rate limiting for login endpoints.
-
-### 🛠️ Configuration (`/config`)
-
-- `WebMvcConfig.java` — Static resource paths for external file access (uploads).
-- `CacheConfig.java` — Caffeine cache configuration.
-- `ResilienceConfig.java` — Resilience4j circuit breaker setup.
-- `OpenApiConfig.java` — Swagger/OpenAPI documentation configuration.
-
-### ⚠️ Exception Handling (`/exception`)
-
-- `GlobalExceptionHandler.java` — Centralized error handling (file size limits, 404s, general errors).
-- `EventNotFoundException.java` — Custom exception for missing events.
-- `RegistrationException.java` — Custom exception for registration failures.
-
-### 🚀 Application Entry Point
-
-- `CampusEventManagerApplication.java` — Spring Boot main class.
+*   `src/components/` — UI components and interactive overlays (e.g., ticket scanners, modal overlays).
+*   `src/contexts/` — Global auth providers wrapping the client.
+*   `src/hooks/` — Custom native UI and accessibility traps (modals, keyboard handling).
+*   `src/layouts/` — Unified dashboard and admin grid layouts.
+*   `src/lib/` — Firebase Client SDK connection wrapper.
+*   `src/pages/` — Page modules (Student Dashboard, Admin Analytics, Ticket scanner Kiosks).
+*   `src/types/` — Shared interfaces.
+*   `vitest.config.ts` & `Happy DOM` — Automated UI testing infrastructure.
 
 ---
 
-## 🎨 Frontend & Resources (`src/main/resources`)
+## ⚡ Cloud Functions (`/functions`)
 
-### 🏙️ Templates (`/templates`)
+The backend is composed of serverless trigger functions in the `functions/src/` folder.
 
-Thymeleaf HTML templates with dynamic content:
-
-| Template | Purpose |
-| :--- | :--- |
-| `dashboard.html` | Student-facing event listing and interaction |
-| `admin_dashboard.html` | Admin management console with real-time analytics |
-| `admin_login.html` | Secure administrative login page |
-| `event_detail.html` | Individual event detail view |
-| `error.html` | Polished, animated error fallback page |
-
-### 🛠️ Static Assets (`/static`)
-
-- `css/style.css` — Core design system (Glassmorphism, Dark Theme, Micro-Animations).
-- `js/main.js` — Frontend logic for search, filtering, and Chart.js integration.
-- `favicon.svg` — Application favicon.
-- `manifest.json` & `sw.js` — Progressive Web App (PWA) configuration for offline support and mobile install.
-
-### 📝 Configuration
-
-- `application.properties` — Server port, database, session, Flyway, Resilience4j, and upload settings.
-
-### 🗂️ Database Migrations (`/db/migration`)
-
-- Flyway `.sql` scripts for deterministic schema versioning.
-
----
-
-## 🧪 Tests (`src/test/java`)
-
-- `EventServiceTest.java` — JUnit 5 / Mockito suites verifying critical business logic without a live database.
-
----
-
-## 🔧 CI/CD (`.github`)
-
-- `workflows/ci.yml` — GitHub Actions CI pipeline (build + test with MySQL service container).
-- `ISSUE_TEMPLATE/` — Bug report and feature request templates.
-- `PULL_REQUEST_TEMPLATE.md` — Standardized PR checklist.
+*   `src/index.ts` — Houses production triggers:
+    *   `onRegistrationCancelled` — Priority O(1) waitlist promotion transaction.
+    *   `onEventPublished` — Automated rich announcements broadcasted to Discord.
+    *   `onRegistrationCreated` — Real-time peer-to-peer assembly squad FCM notifications.
+    *   `onRegistrationUpdated` — Post-event rating prompts 30 minutes after scan.
+    *   `createStripeCheckoutSession` & `onStripePaymentSuccess` — Secure checkout and webhook processing.

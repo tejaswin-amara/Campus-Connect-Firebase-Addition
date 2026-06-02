@@ -113,7 +113,7 @@ export function SquadPanel({
         
         <div className="flex flex-col items-center justify-center p-3.5 rounded-2xl bg-white/5 border border-white/10 animate-pulse-slow">
           <QRCodeSVG 
-            value={`campusconnect:profile:${user.id}:${user.username}:${user.email || 'student@campusconnect.edu'}`}
+            value={`campusconnect:profile:${user.id}`}
             size={120}
             bgColor={"transparent"}
             fgColor={"#ffffff"}

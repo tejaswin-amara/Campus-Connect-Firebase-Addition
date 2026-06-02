@@ -31,8 +31,8 @@ Write-Host "[3/4] Linking shell to project: $ProjectId..." -ForegroundColor Yell
 
 # 4. Trigger live deployment
 Write-Host ""
-Write-Host "[4/4] Uploading static site to Firebase Hosting..." -ForegroundColor Yellow
-& firebase deploy --only hosting
+Write-Host "[4/4] Uploading assets and policies to Firebase..." -ForegroundColor Yellow
+& firebase deploy --only hosting,firestore,storage,functions
 
 Write-Host ""
 Write-Host "🎉 Deployment completed successfully!" -ForegroundColor Green

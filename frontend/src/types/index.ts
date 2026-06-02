@@ -41,6 +41,7 @@ export interface Registration {
   paymentStatus: 'FREE' | 'PENDING' | 'PAID';
   paymentIntentId?: string;
   event?: EventData;
+  attendedAt?: string;
 }
 
 export interface PeerRelation {

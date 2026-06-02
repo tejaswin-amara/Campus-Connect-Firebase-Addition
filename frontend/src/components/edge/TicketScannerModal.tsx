@@ -16,8 +16,6 @@ export function TicketScannerModal({
   onClose,
   onSuccessCheckIn
 }: TicketScannerModalProps) {
-  if (!isOpen) return null;
-
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
   const [feedbackMsg, setFeedbackMsg] = useState('');
   const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
@@ -26,6 +24,12 @@ export function TicketScannerModal({
   const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
+  // Timeouts to prevent state leaks on unmount
+  const scanTimeoutRef = useRef<any>(null);
+  const errorTimeoutRef = useRef<any>(null);
+  const resumeTimeoutRef = useRef<any>(null);
+  const mountDelayTimeoutRef = useRef<any>(null);
+
   // Web Audio API Synthesizer Chimes
   const playSoundChime = (type: 'success' | 'error') => {
     try {
@@ -33,6 +37,12 @@ export function TicketScannerModal({
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
       const ctx = audioContextRef.current;
+      
+      // Ensure AudioContext is running
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
@@ -142,8 +152,9 @@ export function TicketScannerModal({
         onSuccessCheckIn(result.username, result.eventTitle);
       }
 
-      // Reset feedback to scanning mode after 3 seconds
-      setTimeout(() => {
+      // Reset feedback to scanning mode after 3 seconds, tracked by ref to avoid memory leak
+      if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = setTimeout(() => {
         setScanStatus('scanning');
         setFeedbackMsg('');
       }, 3000);
@@ -165,8 +176,9 @@ export function TicketScannerModal({
         setFeedbackMsg('System Error processing Check-In');
       }
 
-      // Reset feedback to scanning mode after 3.5 seconds
-      setTimeout(() => {
+      // Reset feedback to scanning mode after 3.5 seconds, tracked by ref
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      errorTimeoutRef.current = setTimeout(() => {
         setScanStatus('scanning');
         setFeedbackMsg('');
       }, 3500);
@@ -174,6 +186,15 @@ export function TicketScannerModal({
   };
 
   useEffect(() => {
+    if (!isOpen) {
+      // If modal is not open, cleanup active resources
+      if (html5QrcodeRef.current) {
+        html5QrcodeRef.current.stop().catch(() => {});
+        html5QrcodeRef.current = null;
+      }
+      return;
+    }
+
     // Initialise Html5Qrcode Scanner on Mount
     const startScanner = async () => {
       try {
@@ -199,10 +220,13 @@ export function TicketScannerModal({
               if (html5QrcodeRef.current && qrCodeMessage) {
                 qrScanner.pause();
                 processCheckIn(qrCodeMessage).then(() => {
-                  // Resume scanning loop only after processing terminates
-                  setTimeout(() => {
+                  // Resume scanning loop only after processing terminates, tracked by ref
+                  if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+                  resumeTimeoutRef.current = setTimeout(() => {
                     try {
-                      qrScanner.resume();
+                      if (html5QrcodeRef.current) {
+                        qrScanner.resume();
+                      }
                     } catch (e) {}
                   }, 3500);
                 });
@@ -222,19 +246,35 @@ export function TicketScannerModal({
     };
 
     // Micro-delay to ensure reader-region exists in DOM
-    const timer = setTimeout(() => {
+    if (mountDelayTimeoutRef.current) clearTimeout(mountDelayTimeoutRef.current);
+    mountDelayTimeoutRef.current = setTimeout(() => {
       startScanner();
     }, 150);
 
     return () => {
-      clearTimeout(timer);
+      if (mountDelayTimeoutRef.current) clearTimeout(mountDelayTimeoutRef.current);
+      if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+      
       if (html5QrcodeRef.current) {
         try {
           html5QrcodeRef.current.stop().catch(e => console.warn('Scanner stop warning:', e));
         } catch (e) {}
+        html5QrcodeRef.current = null;
+      }
+      
+      if (audioContextRef.current) {
+        try {
+          audioContextRef.current.close().catch(() => {});
+        } catch (e) {}
+        audioContextRef.current = null;
       }
     };
-  }, []);
+  }, [isOpen]);
+
+  // Gate render logic strictly here to fulfill React rules of hooks (hooks are always registered)
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-background/85 backdrop-blur-md">

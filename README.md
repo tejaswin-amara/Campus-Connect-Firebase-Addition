@@ -7,11 +7,11 @@
 > *A premium, full-stack event management ecosystem engineered for high-performance university communities.*
 
 <p align="center">
-  <a href="https://www.oracle.com/java/technologies/downloads/"><img src="https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java Version"></a>
-  <a href="https://spring.io/projects/spring-boot"><img src="https://img.shields.io/badge/Spring_Boot-3.4.13-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white" alt="Spring Boot"></a>
-  <a href="#%EF%B8%8F-security--reliability"><img src="https://img.shields.io/badge/Security-Zero--Trust-E11D48?style=for-the-badge&logo=spring-security&logoColor=white" alt="Security Hardened"></a>
-  <a href="https://flywaydb.org/"><img src="https://img.shields.io/badge/DB-Flyway-CC0201?style=for-the-badge&logo=flyway&logoColor=white" alt="Flyway Migrations"></a>
-  <a href="#architecture-resilience"><img src="https://img.shields.io/badge/Resilience-Resilience4j-F7DF1E?style=for-the-badge&logo=blueprint&logoColor=black" alt="Resilience4j"></a>
+  <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19"></a>
+  <a href="https://vite.dev/"><img src="https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite"></a>
+  <a href="https://firebase.google.com/"><img src="https://img.shields.io/badge/Firebase-Serverless-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase Serverless"></a>
+  <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind-v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS v4"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-6-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript 6"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="MIT License"></a>
 </p>
 
@@ -66,30 +66,31 @@
 
 ## 🏗️ Technical Architecture
 
-CampusConnect follows a clean, highly modular architecture with strictly defined boundaries for core logic, web security, and data persistence.
+CampusConnect follows a clean, highly modular serverless architecture with strictly defined security boundaries for client logic, database rules, and file security.
 
 ```mermaid
 graph TD
-    User((User / Client)) -->|HTTPS| WebLayer[Spring Boot Web Layer]
-    WebLayer -->|Filter| RateLimit[Bucket4j Rate Limiter]
-    RateLimit -->|Context| Security[Spring Security / CSRF]
-    Security -->|Service| CoreLogic[Core Event Business Logic]
-    CoreLogic -->|JPA| DB[(MySQL Database)]
-    CoreLogic -.->|Circuit Breaker| ExtAPI[External Services Integration]
-    CoreLogic -->|Filesystem| Storage[Uploads & Media Storage]
+    User((User / Client)) -->|HTTPS| ReactApp[Vite + React SPA]
+    ReactApp -->|Firestore SDK| FirestoreRules[Firestore Security Rules]
+    ReactApp -->|Storage SDK| StorageRules[Storage Security Rules]
+    FirestoreRules -->|Atomic Transaction| DB[(Firestore NoSQL)]
+    StorageRules -->|MIME & Size Limit| Storage[(Firebase Storage)]
+    DB -.->|Firestore Triggers| CloudFunctions[Node.js Cloud Functions]
+    CloudFunctions -.->|Squad Alerts & Promotes| FCM[Firebase Cloud Messaging]
+    CloudFunctions -.->|Event Announcements| Webhooks[Discord/Slack Webhooks]
 ```
 
 ### 🛠️ Technology Stack
 
 | Layer | Technology |
 | :--- | :--- |
-| **Backend** | Java 21, Spring Boot 3.4.13 |
-| **Security** | Spring Security 6.x, Bucket4j, Session Management |
-| **Resilience** | Resilience4j (Circuit Breaker) |
-| **Frontend** | Thymeleaf, Vanilla CSS (Glassmorphism), JavaScript (ES6) |
-| **Database** | MySQL 8.x (InnoDB), Flyway Migrations, Spring Data JPA / Hibernate |
-| **Observability** | Logstash Encoder (MDC), SLF4J, Logback |
-| **Build** | Maven (Wrapper), JaCoCo Code Coverage |
+| **Frontend** | React 19, Vite 8, TypeScript 6, Tailwind CSS v4, Framer Motion |
+| **Backend Triggers** | Node.js 20, TypeScript, Firebase Cloud Functions v2 |
+| **Database** | Google Cloud Firestore (NoSQL, Atomic Multi-Document Transactions) |
+| **Authentication** | Firebase Auth (JWT Tokens, Custom Admin Claims) |
+| **Media Storage** | Google Cloud Storage (Mime-restricted, Max Capacity Enforced) |
+| **Hosting** | Firebase Global CDN Hosting |
+| **Testing** | Vitest 4, Happy DOM, React Testing Library |
 
 ---
 
@@ -97,16 +98,15 @@ graph TD
 
 ### Security Hardening (Zero-Trust)
 
-- **BCrypt Authentication** — Atomic BCrypt hashing (Strength 12) with constant-time dummy execution to negate timing side-channel attacks.
-- **Session & CSRF Protection** — Hardened CSRF tokens with `SameSite=Strict`, `HttpOnly`, `Secure` cookie policies.
-- **Concurrency Control** — Pessimistic Write Locking (`PESSIMISTIC_WRITE`) on critical registration paths to prevent race conditions.
-- **Upload Protection** — Strict symbolic link validation, MIME checking, and UUID-based filename sanitization.
-- **Rate Limiting** — Bucket4j interceptors throttling login attempts to 5 requests per 15 minutes per IP.
+- **Role Escalation Protection** — Hardened Firestore database rules block users from updating their `role` attributes, restricting `ADMIN` claims exclusively to validated operations.
+- **SQL / Injection Immunity** — Standardized Firestore Document references completely negate query injection and path traversal vulnerabilities.
+- **Secure File Storage** — Storage policies enforce strict MIME validation and maximum size constraints (<5MB for event covers, <2MB for user avatars).
+- **Concurrency & Race Conditions** — Multi-document atomic operations and priority waitlist queue management ensure race-condition immunity.
 
 ### Architecture Resilience
 
-- **Fail-Safe Processing** — External calls are wrapped in a Resilience4j Circuit Breaker to prevent cascading failures.
-- **Database Migrations** — Flyway ensures deterministic, transactional schema versioning.
+- **FCM Push Notifications** — Real-time Firebase Cloud Messaging keeps students notified of waitlist promotions and squad assemblies.
+- **Offline First PWA** — Dynamic PWA service workers cache static assets and clone dynamic content streams to prevent cache corruption.
 
 ---
 
@@ -114,9 +114,9 @@ graph TD
 
 ### Prerequisites
 
-- **Java 21+** (JDK)
-- **MySQL Server 8.x**
-- **Maven 3.9+** (or use the included wrapper)
+- **Node.js 20+**
+- **npm** (v10+)
+- **Firebase CLI** (`npm install -g firebase-tools`)
 
 ### Quick Start
 
@@ -127,26 +127,30 @@ graph TD
    cd campus-connect
    ```
 
-2. **Initialize Database**
-
-   Ensure MySQL is running. The application will auto-create the `campus_events` database if it doesn't exist.
-
-3. **Run the Application**
+2. **Install Frontend & Functions Dependencies**
 
    ```bash
-   # Using Maven Wrapper (recommended)
-   ./mvnw spring-boot:run
+   cd frontend && npm install
+   cd ../functions && npm install
+   cd ..
+   ```
 
+3. **Run the Application Locally**
+
+   Run the all-in-one local development script to spin up both the Vite React hot-reload server and the offline Firebase Emulators:
+   ```bash
    # Windows PowerShell
    .\run_app.ps1
    ```
 
 4. **Open the App**
 
-   Navigate to [`http://localhost:9090`](http://localhost:9090).
+   - **Frontend Hub:** [`http://localhost:5173/`](http://localhost:5173/)
+   - **Database & Auth Simulator UI:** [`http://localhost:4000/`](http://localhost:4000/)
 
 ### Stopping the Application
 
+To shut down all background emulation and client ports cleanly:
 ```powershell
 .\stop_app.ps1
 ```
@@ -155,68 +159,41 @@ graph TD
 
 ## 🐳 Docker Deployment
 
-### Using Docker Compose (Recommended)
+### Local Container Build
 
-Spin up the full stack (MySQL + App) with a single command:
+You can serve the static React frontend in a hardened container using the provided multi-stage build:
 
 ```bash
+# Build the Vite client and package it into Nginx Alpine
 docker compose up -d
 ```
 
-The app will be accessible at [`http://localhost:9090`](http://localhost:9090).
+The app will be accessible locally at [`http://localhost:9090`](http://localhost:9090).
 
-### Manual Docker Build
+### Production Firebase Deployment
 
-```bash
-docker build -t campus-connect .
-docker run -p 9090:9090 \
-  -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/campus_events \
-  -e MYSQLUSER=root \
-  -e MYSQLPASSWORD=root \
-  campus-connect
+To deploy hosting assets, security rules, indexes, and Cloud Functions triggers directly to live Google Cloud servers:
+
+```powershell
+.\deploy.ps1
 ```
 
-### Railway Deployment
-
-1. Push your code to GitHub.
-2. Go to the [Railway Dashboard](https://railway.app/dashboard) → **New Project** → **Deploy from GitHub repo**.
-3. Select the `campus-connect` repository.
-4. Railway will auto-detect the `Dockerfile` and deploy.
-
 ---
 
-## ⚙️ Environment Variables
+## 🔑 Default Emulator Accounts
 
-| Variable | Description | Default |
+On first emulator start, you can use these test accounts populated in local Firestore/Auth simulators:
+
+| Role | Username / Email | Password |
 | :--- | :--- | :--- |
-| `PORT` | Application server port | `9090` |
-| `MYSQLHOST` | Database host | `localhost` |
-| `MYSQLPORT` | Database port | `3306` |
-| `MYSQLDATABASE` | Database name | `campus_events` |
-| `MYSQLUSER` | Database user | `root` |
-| `MYSQLPASSWORD` | Database password | `root` |
-| `ADMIN_PASSWORD` | Bootstrap admin password | `admin123` |
-| `LOG_LEVEL` | Application logging verbosity | `DEBUG` *(use `INFO` or `WARN` in production)* |
-| `UPLOAD_DIR` | Upload directory path | `uploads` |
-
----
-
-## 🔑 Default Accounts
-
-On first start, the database is populated via Flyway migrations with the following defaults:
-
-| Role | Portal | Username | Password |
-| :--- | :--- | :--- | :--- |
-| **Administrator** | `/admin/dashboard` | `admin` | *Set via `ADMIN_PASSWORD` env var* |
-| **Student** | `/` | — | *No login required (seamless access)* |
-
-> **⚠️ Important:** Change the default admin password in production by setting the `ADMIN_PASSWORD` environment variable.
+| **Administrator** | `admin@campusconnect.com` | `admin123` |
+| **Student** | `student@campusconnect.com` | `student123` |
 
 ---
 
 ## 📚 API Documentation
 
-Interactive API documentation is available via **Swagger UI** when the application is running:
+Since the architecture is fully serverless, direct database calls and functions are documented inline:
 
 - **Swagger UI:** [`http://localhost:9090/swagger-ui.html`](http://localhost:9090/swagger-ui.html)
 - **OpenAPI JSON:** [`http://localhost:9090/v3/api-docs`](http://localhost:9090/v3/api-docs)

@@ -5,6 +5,7 @@ import { cn } from '../../lib/utils';
 import { Calendar, MapPin, Users, Edit3, Trash2, ArrowUpRight } from 'lucide-react';
 import { PopularityBadge, ConflictDetector } from '../innovations/AcademicInnovations';
 import { SOVEREIGN_STYLES } from '../../lib/styles';
+import { downloadICSEvent } from '../../utils/calendar';
 
 export interface EventData {
   id: string | number;
@@ -34,6 +35,7 @@ export interface EventCardProps {
   onDownloadCertificate?: (id: string | number) => void;
   onEdit?: (event: EventData) => void;
   onDelete?: (id: string | number) => void;
+  onViewAttendees?: (id: string | number) => void;
   isAdmin?: boolean;
   registeredCount?: number;
   isRegistered?: boolean;
@@ -66,11 +68,15 @@ export const EventCardContainer = memo(function EventCardContainer({
   };
 
   return (
-    <Card className={cn(
-      "bg-card border-micro shadow-inner-glow overflow-hidden flex flex-col hover:-translate-y-1 transition-all duration-300 rounded-xl group",
-      getCategoryBorder(category),
-      className
-    )}>
+    <Card 
+      role="article" 
+      aria-roledescription="event card"
+      className={cn(
+        "bg-card border-micro shadow-inner-glow overflow-hidden flex flex-col hover:-translate-y-1 transition-all duration-300 rounded-xl group",
+        getCategoryBorder(category),
+        className
+      )}
+    >
       {children}
     </Card>
   );
@@ -190,29 +196,34 @@ export const EventCardBody = memo(function EventCardBody({
       )}
       
       {/* Event Details Grid */}
-      <div className="space-y-2.5 mb-4 border-t border-white/5 pt-3.5">
+      <div className="space-y-2.5 mb-4 border-t border-white/5 pt-3.5" role="group" aria-label="Event details">
         <div className="flex items-center text-xs font-semibold text-muted-foreground">
-          <div className="p-1 rounded-md bg-white/5 border border-white/5 text-primary/80 mr-2.5 shrink-0">
-            <Calendar className="h-3.5 w-3.5" />
+          <div className="p-1 rounded-md bg-white/5 border border-white/5 text-primary/80 mr-2.5 shrink-0" aria-hidden="true">
+            <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
           </div>
           <span className="mono-premium text-[11px] tracking-tight">
+            <span className="sr-only">Date: </span>
             {eventDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at {eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
 
         <div className="flex items-center text-xs font-semibold text-muted-foreground">
-          <div className="p-1 rounded-md bg-white/5 border border-white/5 text-primary/80 mr-2.5 shrink-0">
-            <MapPin className="h-3.5 w-3.5" />
+          <div className="p-1 rounded-md bg-white/5 border border-white/5 text-primary/80 mr-2.5 shrink-0" aria-hidden="true">
+            <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
           </div>
-          <span className="truncate">{event.venue}</span>
+          <span>
+            <span className="sr-only">Location: </span>
+            <span className="truncate">{event.venue}</span>
+          </span>
         </div>
 
         {event.maxCapacity !== undefined && event.maxCapacity > 0 && (
           <div className="flex items-center text-xs font-semibold text-muted-foreground">
-            <div className="p-1 rounded-md bg-white/5 border border-white/5 text-primary/80 mr-2.5 shrink-0">
-              <Users className="h-3.5 w-3.5" />
+            <div className="p-1 rounded-md bg-white/5 border border-white/5 text-primary/80 mr-2.5 shrink-0" aria-hidden="true">
+              <Users className="h-3.5 w-3.5" aria-hidden="true" />
             </div>
             <span className="flex items-baseline gap-1 text-[11px]">
+              <span className="sr-only">Capacity: </span>
               Seats: <strong className="text-foreground mono-premium">{registeredCount}</strong> <span className="text-muted-foreground/50">/</span> <span className="mono-premium text-muted-foreground/80">{event.maxCapacity}</span>
             </span>
           </div>
@@ -221,13 +232,13 @@ export const EventCardBody = memo(function EventCardBody({
 
       {/* Peer Attendees Overlap Grid */}
       {peerAttendees && peerAttendees.length > 0 && (
-        <div className="flex items-center gap-2 mb-3.5 animate-in fade-in duration-300">
-          <div className="flex -space-x-2 overflow-hidden">
+        <div className="flex items-center gap-2 mb-3.5 animate-in fade-in duration-300" role="group" aria-label="Squad attendees">
+          <div className="flex -space-x-2 overflow-hidden" role="list">
             {peerAttendees.slice(0, 3).map((peer) => (
               <div 
                 key={peer.userId} 
-                role="img"
-                aria-label={`Peer ${peer.username}`}
+                role="listitem"
+                aria-label={`Squad peer member ${peer.username}`}
                 className={cn(
                   "inline-flex h-6.5 w-6.5 rounded-full ring-2 ring-card bg-gradient-to-br from-primary to-cyan-500 border border-white/10 flex items-center justify-center text-[9px] font-black text-white hover:scale-110 cursor-help transition-all duration-300"
                 )}
@@ -265,6 +276,7 @@ export const EventCardFooter = memo(function EventCardFooter({
   onDownloadCertificate,
   onEdit,
   onDelete,
+  onViewAttendees,
   isAdmin,
   registeredCount = 0,
   isRegistered = false,
@@ -295,20 +307,29 @@ export const EventCardFooter = memo(function EventCardFooter({
               Waitlisted ⏳
             </button>
           ) : isRegistered && onViewPass ? (
-            <button 
-              disabled={!isOnCampus}
-              onClick={() => isOnCampus && onViewPass(event.id)}
-              aria-label={isOnCampus ? "View event pass" : "Pass locked: Must be on campus to view"}
-              className={cn(
-                "w-full h-10 px-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 border transition-all duration-300 cursor-pointer",
-                isOnCampus 
-                  ? "border-emerald-500/25 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/15 shadow-[0_0_15px_rgba(16,185,129,0.05)] tactile-trigger"
-                  : "opacity-50 border-red-500/20 bg-red-950/10 text-red-400 cursor-not-allowed shadow-none"
-              )}
-              title={isOnCampus ? "View event pass" : "Pass locked: Must be on campus"}
-            >
-              {isOnCampus ? 'View Pass 🎟️' : 'Locked 🔒'}
-            </button>
+            <div className="flex gap-2.5 w-full animate-in fade-in duration-200">
+              <button 
+                disabled={!isOnCampus}
+                onClick={() => isOnCampus && onViewPass(event.id)}
+                aria-label={isOnCampus ? "View event pass" : "Pass locked: Must be on campus to view"}
+                className={cn(
+                  "flex-1 h-10 px-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 border transition-all duration-300 cursor-pointer",
+                  isOnCampus 
+                    ? "border-emerald-500/25 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/15 shadow-[0_0_15px_rgba(16,185,129,0.05)] tactile-trigger"
+                    : "opacity-50 border-red-500/20 bg-red-950/10 text-red-400 cursor-not-allowed shadow-none"
+                )}
+                title={isOnCampus ? "View event pass" : "Pass locked: Must be on campus"}
+              >
+                {isOnCampus ? 'View Pass 🎟️' : 'Locked 🔒'}
+              </button>
+              <button 
+                onClick={() => downloadICSEvent(event)}
+                aria-label="Add event to calendar"
+                className="flex-1 h-10 px-3 rounded-xl font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 border border-cyan-500/25 bg-cyan-500/5 text-cyan-400 hover:bg-cyan-500/15 shadow-[0_0_15px_rgba(6,182,212,0.05)] transition-all duration-300 tactile-trigger cursor-pointer"
+              >
+                Calendar 📅
+              </button>
+            </div>
           ) : onRegister ? (
             <button 
               onClick={() => !isRegistered && onRegister(event.id)}
@@ -328,12 +349,12 @@ export const EventCardFooter = memo(function EventCardFooter({
               ) : event.isPaid ? (
                 <>
                   Pay & Register (₹{event.ticketPrice})
-                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
                 </>
               ) : (
                 <>
                   Register Now
-                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
                 </>
               )}
             </button>
@@ -342,26 +363,38 @@ export const EventCardFooter = memo(function EventCardFooter({
       )}
       
       {isAdmin && (
-        <div className="flex gap-2.5 w-full">
+        <div className="flex flex-col gap-2 w-full">
+          <div className="flex gap-2.5 w-full">
+            <button 
+              onClick={() => onEdit && onEdit(event)}
+              aria-label={`Edit event: ${event.title}`}
+              className={cn(
+                "flex-1 bg-secondary text-secondary-foreground hover:bg-secondary/90 hover:text-foreground h-9.5 px-3 rounded-xl font-bold border border-white/5 transition-all duration-300 text-xs flex items-center justify-center gap-1.5 tactile-trigger cursor-pointer"
+              )}
+            >
+              <Edit3 className="h-3.5 w-3.5 text-primary/80" aria-hidden="true" />
+              Edit
+            </button>
+            <button 
+              onClick={() => onDelete && onDelete(event.id)}
+              aria-label={`Delete event: ${event.title}`}
+              className={cn(
+                "flex-1 bg-destructive/5 text-destructive hover:bg-destructive hover:text-primary-foreground h-9.5 px-3 rounded-xl font-bold border border-destructive/20 transition-all duration-300 text-xs flex items-center justify-center gap-1.5 tactile-trigger cursor-pointer"
+              )}
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+              Delete
+            </button>
+          </div>
           <button 
-            onClick={() => onEdit && onEdit(event)}
-            aria-label={`Edit event: ${event.title}`}
+            onClick={() => onViewAttendees && onViewAttendees(event.id)}
+            aria-label={`View attendee list for event: ${event.title}`}
             className={cn(
-              "flex-1 bg-secondary text-secondary-foreground hover:bg-secondary/90 hover:text-foreground h-9.5 px-3 rounded-xl font-bold border border-white/5 transition-all duration-300 text-xs flex items-center justify-center gap-1.5 tactile-trigger cursor-pointer"
+              "w-full bg-primary/10 text-primary hover:bg-primary/20 h-9.5 px-3 rounded-xl font-black border border-primary/20 transition-all duration-300 text-xs flex items-center justify-center gap-1.5 tactile-trigger cursor-pointer"
             )}
           >
-            <Edit3 className="h-3.5 w-3.5 text-primary/80" />
-            Edit
-          </button>
-          <button 
-            onClick={() => onDelete && onDelete(event.id)}
-            aria-label={`Delete event: ${event.title}`}
-            className={cn(
-              "flex-1 bg-destructive/5 text-destructive hover:bg-destructive hover:text-primary-foreground h-9.5 px-3 rounded-xl font-bold border border-destructive/20 transition-all duration-300 text-xs flex items-center justify-center gap-1.5 tactile-trigger cursor-pointer"
-            )}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
+            <Users className="h-3.5 w-3.5" aria-hidden="true" />
+            Attendee Panel 👥
           </button>
         </div>
       )}

@@ -1,10 +1,10 @@
-# 🧠 SOVEREIGN INTELLIGENCE (v12.0.0-ENTERPRISE ENTERPRISE HARDENED)
+# 🧠 SOVEREIGN INTELLIGENCE (v13.0.0-PRODUCTION HARDENED)
 
 ## ⚡ MISSION STATEMENT
 The system is governed by the **Enterprise Guardian**. Sovereign Intelligence enforces the alignment of activities with hardened outcomes, truth verification, and the 32-module complexity cap.
 
 ## ⚖️ INTELLIGENCE DIRECTIVES
-1.  **Truth Consensus (v12.0.0-ENTERPRISE)**: No internal metric is authoritative. The system MUST cross-verify SLIs from the [Performance Engine](../../scripts/performance-check.ps1) against infrastructure logs and governance state via the [Truth Bridge](../../scripts/truth.ps1).
+1.  **Truth Consensus (v13.0.0-PRODUCTION)**: No internal metric is authoritative. The system MUST cross-verify SLIs from the [Performance Engine](../../scripts/performance-check.ps1) against infrastructure logs and governance state via the [Truth Bridge](../../scripts/truth.ps1).
 2.  **Confidence-Based Autonomy**: Every autonomous turn MUST compute a Confidence Score.
     - **High (>80%)**: Ghost-Pilot / Full Autonomy.
     - **Medium (70-80%)**: Containment Mode (Restricted mutations).

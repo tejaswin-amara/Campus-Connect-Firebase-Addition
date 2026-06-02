@@ -1,139 +1,72 @@
 # 📘 CampusConnect — Technical Guide
 
-Welcome to the technical documentation for the CampusConnect application. This guide provides an in-depth look at the architecture, key components, and implementation details.
+Welcome to the technical documentation for the CampusConnect application. This guide provides an in-depth look at the architecture, key algorithms, and implementation details of the serverless ecosystem.
 
 ## 1. Architecture Overview 🏗️
 
-The application follows a standard **Model-View-Controller (MVC)** architecture using the Spring Boot framework.
+The application maps the classic Model-View-Controller (MVC) paradigm directly onto a serverless cloud infrastructure:
 
-### Layered Structure
+*   **View (Presentation Layer):** A high-performance single-page application built using React 19, Vite 8, TypeScript 6, and styled with Tailwind CSS v4.
+*   **Controller (Routing & Triggers):** Handled client-side via `react-router-dom` and on the backend via Firebase Cloud Functions v2 (Node.js 20 microservices).
+*   **Model & Service Layer (Business Logic):** Cloud Firestore NoSQL collections, guarded by atomic document-write security boundaries (`firestore.rules`) and processed asynchronously by Firestore Cloud triggers.
+*   **Media & Assets Storage:** Google Cloud Storage bucket enforcing strict size limits and MIME validation.
 
-- **Presentation Layer (View):** Thymeleaf HTML templates with custom CSS (Glassmorphism design system) and vanilla JavaScript.
-- **Control Layer (Controller):** Spring MVC Controllers (`EventController`, `AdminController`, `AuthController`) handling HTTP requests and routing.
-- **Service Layer (Service):** Business logic encapsulation (`EventService`, `UserService`).
-- **Data Access Layer (Repository):** Spring Data JPA Repositories (`EventRepository`, `UserRepository`, `RegistrationRepository`).
-- **Database Layer:** MySQL 8.x with Flyway-managed schema migrations.
+---
 
-## 2. Technology Stack 💻
+## 2. Key Algorithms & Implementation Details 🔍
 
-| Component | Technology | Version |
-| :--- | :--- | :--- |
-| **Backend Framework** | Spring Boot | 3.4.2 |
-| **Language** | Java | 21 (LTS) |
-| **Database** | MySQL | 8.0+ |
-| **ORM** | Hibernate (via Spring Data JPA) | — |
-| **Frontend Engine** | Thymeleaf | — |
-| **Styling** | Custom CSS (Glassmorphism, Dark Theme) | — |
-| **Charts** | Chart.js | Latest |
-| **Icons** | Bootstrap Icons | 1.11.3 |
-| **Build Tool** | Maven (Wrapper) | — |
-| **Code Coverage** | JaCoCo | 0.8.12 |
+### 2.1 Asynchronous Waitlist Promotion Transaction
+When a student cancels a registration, the O(1) waitlist promotion transaction handles seat allocation atomically to prevent race conditions:
 
-## 3. Key Features & Implementation Details 🔍
+1.  **Trigger:** An `onDocumentDeleted` hook fires on `registrations/{registrationId}`.
+2.  **Validation:** If the cancelled registration had a status of `WAITLISTED`, execution terminates (no seats were freed). If `REGISTERED` or `ATTENDED`, the transactional loop starts.
+3.  **Atomic Promotion:**
+    *   Query the oldest waitlisted registration for the event using:
+        ```typescript
+        db.collection('registrations')
+          .where('eventId', '==', eventId)
+          .where('status', '==', 'WAITLISTED')
+          .orderBy('registeredAt', 'asc')
+          .limit(1)
+        ```
+    *   Promote the matching student by setting status to `REGISTERED`.
+    *   Decrement the parent event's `waitlistCount` atomically.
+    *   If no waitlist exists, decrement the active `registeredCount` instead.
+4.  **FCM Dispatch:** Dispatches a push notification informing the student of their promotion.
 
-### 3.1 Event Management (CRUD)
+### 2.2 Secure Payment Webhook Processing
+To prevent client-side price tampering during event registration:
 
-- **Create:** Admins create events with title, description, venue, category, dates, and images.
-- **Read:**
-  - *Student Dashboard:* Displays events with filtering by category and status (Upcoming/Ongoing/Past).
-  - *Admin Dashboard:* Comprehensive table view with search, filter, and pagination.
-- **Update:** Full edit capability for event details and images.
-- **Delete:** Hard delete removes the event and its associated image file from disk.
+1.  **Intent Generation:** When a paid event is requested, `createStripeCheckoutSession` is called via HTTPS. It returns a secure Stripe hosted Checkout URL.
+2.  **Verification webhook:** Stripe triggers `onStripePaymentSuccess` upon transaction completion.
+3.  **Atomic Record Creation:** The Cloud Function verifies the webhook payload, registers the student as `PAID`, increments the event capacity, and creates the registration document. Standard user database writes are blocked from modifying `paymentStatus` directly by Firestore Security Rules.
 
-### 3.2 Image Handling
+### 2.3 PWA Caching and SW Stream Cloning
+To ensure robust offline access on mobile devices and prevent memory lock regressions during dynamic caching:
+*   The Service Worker intercepts network requests and stores them in cache caches.
+*   **Response stream cloning is strictly enforced:** Cache entries are cloned (`response.clone()`) before putting them into service worker storage. This prevents body consumption exceptions in the browser.
+*   **Recovery hooks:** When dynamic chunk import failures occur (typical after a new production deploy), the client catches the exception in `SovereignErrorBoundary` and triggers a single hard page reload to fetch the new production manifest.
 
-- **Storage:** Images are stored on the local file system under `uploads/`.
-- **Serving:** Spring Boot resource handler maps `/uploads/**` to the file system directory.
-- **Security:** Upload logic is isolated in `EventService.java` — blocks path traversal, applies UUID filenames, and enforces extension whitelists (`jpg`, `png`, `webp`, `gif`).
-- **Cleanup:** `EventService.deleteEvent()` automatically deletes the corresponding image file to prevent orphans.
+---
 
-### 3.3 Data Integrity & Validation
+## 3. Security Architecture 🛡️
 
-- **Date Logic:** The system enforces `End Date > Start Date` validation.
-- **Input Safety:** Input sanitization handled via Spring MVC binding and Bean Validation.
-
-### 3.4 Frontend Experience
-
-- **Instant Filters:** Custom JavaScript provides client-side category/status filtering without page reloads.
-- **Animations:** CSS3 animations with staggered delays for smooth loading experiences.
-- **Glassmorphism:** Consistent design language using semi-transparent backgrounds and backdrop blur.
-
-## 4. Security Architecture 🛡️
-
-The application implements a "Security by Design" approach following a comprehensive security audit.
-
-### 4.1 Authentication & Authorization
-
-- **BCrypt Hardening:** Passwords hashed with BCrypt (strength 12). The authentication service includes a constant-time dummy execution path to prevent username enumeration via timing attacks.
-- **Session Management:** On successful login, existing sessions are invalidated and new ones created to prevent session fixation.
-- **Role-Based Access:** Enforced via Spring Security filters requiring `hasRole('ADMIN')` for all management endpoints.
-
-### 4.2 Traffic & Forgery Control
-
-- **Rate Limiting:** `RateLimitingFilter` (Bucket4j) throttles login attempts to 5 requests per 15 minutes per IP.
-- **CSRF Protection:** All POST/PUT/DELETE forms include a `_csrf` token validated server-side.
-
-### 4.3 Database & Concurrency
-
-- **Schema Migrations:** Managed via Flyway for consistent environments.
-- **Race Condition Prevention:** Pessimistic write locks during critical data initialization.
-- **Transactional Integrity:** Strict `@Transactional` boundaries ensure atomic updates and snapshot isolation.
-
-## 5. Database Schema 🗄️
-
-### `User` Table
-
-| Column | Type | Notes |
-| :--- | :--- | :--- |
-| `id` | Long (PK) | Auto-generated |
-| `username` | String (Unique) | — |
-| `password` | String | BCrypt hashed |
-| `role` | String | `ADMIN` or `STUDENT` |
-
-### `Event` Table
-
-| Column | Type | Notes |
-| :--- | :--- | :--- |
-| `id` | Long (PK) | Auto-generated |
-| `title` | String | — |
-| `description` | Text | — |
-| `dateTime` | DateTime | Start date/time |
-| `endDateTime` | DateTime (Nullable) | End date/time |
-| `venue` | String | — |
-| `category` | String | — |
-| `imageUrl` | String | Path to uploaded image |
-| `registrationLink` | String | External registration URL |
-| `maxCapacity` | Integer | — |
-
-### `Registration` Table
-
-| Column | Type | Notes |
-| :--- | :--- | :--- |
-| `id` | Long (PK) | Auto-generated |
-| `user_id` | Long (FK) | References `User` |
-| `event_id` | Long (FK) | References `Event` |
-
-## 6. Deployment & Setup 🚀
-
-### Local Development
-
-The `run_app.ps1` PowerShell script handles the full lifecycle:
-
-1. **Database Check:** Ensures the MySQL service is running.
-2. **Build:** Uses Maven Wrapper to compile the application.
-3. **Run:** Starts the application on port `9090`.
-
-### Docker
-
-```bash
-docker compose up -d
+### 3.1 Role Escalation Prevention
+No client can escalate their privileges. Firestore Rules explicitly enforce role constraints:
+```javascript
+allow create: if isOwner(userId) && (
+  !request.resource.data.keys().hasAll(['role']) || 
+  request.resource.data.role == 'STUDENT' || 
+  isAdmin()
+);
 ```
+Standard students can only set their role to `STUDENT` on creation. Only existing verified administrators (stored in `/admins/{adminId}`) or users with `role == 'ADMIN'` verified by active claims can update fields.
 
-This spins up both MySQL and the application. See the [README](README.md) for full Docker and Railway deployment instructions.
-
-### Production Considerations
-
-- Override `ADMIN_PASSWORD` with a strong password.
-- Set `LOG_LEVEL=INFO` or `WARN` for production.
-- Configure `useSSL=true` and `allowPublicKeyRetrieval=false` for database connections.
-- Use a persistent volume for the `uploads/` directory.
+### 3.2 Path Traversal & Injection Safeguards
+Path traversal vulnerabilities on scanned QR codes are blocked via strict string matching. Scanned registration paths must match absolute alpha-numeric patterns and avoid delimiter traversals before querying:
+```javascript
+allow write: if isAuthenticated() && 
+              (resource.data.userId == request.auth.uid || isAdmin()) &&
+              (request.resource.data.status != 'ATTENDED' || isAdmin() || resource.data.status == 'ATTENDED');
+```
+Students are physically blocked from altering their status to `ATTENDED` manually. Only authorized administrative scanning kiosks can scan QR credentials and update state.

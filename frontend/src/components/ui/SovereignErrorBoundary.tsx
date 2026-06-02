@@ -72,7 +72,9 @@ export class SovereignErrorBoundary extends Component<Props, State> {
 
             <div className="w-full mt-4 p-3 rounded-lg bg-black/40 border border-white/5 text-left overflow-x-auto max-h-[120px] scrollbar-thin">
               <p className="text-[10px] font-mono text-red-300 leading-tight select-text">
-                {this.state.error?.stack || this.state.error?.message || 'Unknown render context crash.'}
+                {import.meta.env.DEV
+                  ? (this.state.error?.stack || this.state.error?.message || 'Unknown render context crash.')
+                  : 'An unexpected application exception occurred. The Sovereign Apex Engine intercepted the crash to protect your session.'}
               </p>
             </div>
 

@@ -73,3 +73,12 @@ application-local.yml
 .qodo/
 hs_err_pid*
 replay_pid*
+
+# ==============================================================================
+# JavaScript & Node
+# ==============================================================================
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+functions/lib/

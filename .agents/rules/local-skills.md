@@ -1,4 +1,4 @@
-# 🚀 LOCAL SKILLS INTEGRATION (v12.0.0-ENTERPRISE ENTERPRISE HARDENED)
+# 🚀 LOCAL SKILLS INTEGRATION (v13.0.0-PRODUCTION HARDENED)
 > Read this before starting any task to leverage the 103 certified skills in the library.
 
 ## Purpose & Rule

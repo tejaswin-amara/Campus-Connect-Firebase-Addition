@@ -29,11 +29,13 @@ ChartJS.register(
   Filler
 );
 
+import type { EventData, Registration, FeedbackRating } from '../../types';
+
 interface AdminAnalyticsPanelProps {
-  events: any[];
+  events: EventData[];
   registrationCounts: Record<string, number>;
-  adminRegistrations: any[];
-  adminFeedback: any[];
+  adminRegistrations: Registration[];
+  adminFeedback: FeedbackRating[];
 }
 
 export default function AdminAnalyticsPanel({

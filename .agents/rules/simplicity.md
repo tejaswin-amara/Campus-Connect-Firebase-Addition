@@ -1,4 +1,4 @@
-# 🧱 COMPLEXITY GOVERNANCE (v12.0.0-ENTERPRISE ENTERPRISE HARDENED)
+# 🧱 COMPLEXITY GOVERNANCE (v13.0.0-PRODUCTION HARDENED)
 
 ## 🏛️ CANONICAL MISSION
 To enforce architectural simplicity and maintain the **32-Module Enterprise Cap**. The Sovereign system is a finite, hardened platform.

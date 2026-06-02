@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getMessaging, isSupported } from 'firebase/messaging';
 
@@ -33,16 +33,7 @@ export const getMessagingInstance = async () => {
   return null;
 };
 
-// Enable offline caching database layer
-if (typeof window !== 'undefined') {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('IndexedDB persistence failed: Multiple tabs open.');
-    } else if (err.code === 'unimplemented') {
-      console.warn('IndexedDB persistence: Browser lacks support.');
-    }
-  });
-}
+
 
 // Connect to local emulator suite in development/local mode
 if (import.meta.env.DEV) {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -80,6 +80,23 @@ export function MainLayout({ children }: { children: ReactNode }) {
   };
 
   const unreadCount = notifications.filter(n => n.unread).length;
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isNotificationsOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsNotificationsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isNotificationsOpen]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative select-none">
@@ -163,7 +180,7 @@ export function MainLayout({ children }: { children: ReactNode }) {
             )}
 
             {user ? (
-              <div className="flex items-center gap-3 relative">
+              <div ref={dropdownRef} className="flex items-center gap-3 relative">
                 
                 {/* Notification Bell */}
                 <button 

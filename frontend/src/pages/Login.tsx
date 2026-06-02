@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Card, CardContent, CardHeader, CardDescription } from '../components/ui/Card';
 import { auth } from '../lib/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -26,18 +26,8 @@ export default function Login() {
       await signInWithEmailAndPassword(auth, email, password);
       navigate('/dashboard');
     } catch (err: any) {
-      // If user doesn't exist yet, auto-create for hassle-free university onboarding
       if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        try {
-          await createUserWithEmailAndPassword(auth, email, password);
-          navigate('/dashboard');
-        } catch (createErr: any) {
-          if (createErr.code === 'auth/email-already-in-use') {
-            setError('Invalid credentials. Check your password.');
-          } else {
-            setError(createErr.message || 'Authentication failed.');
-          }
-        }
+        setError('Invalid credentials. Please check your username and password.');
       } else {
         setError(err.message || 'Login failed. Please check your credentials.');
       }
