@@ -22,7 +22,7 @@ export default function Kiosk() {
   const playSoundChime = (type: 'success' | 'error') => {
     try {
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContextRef.current = new (window.AudioContext || (window as unknown).webkitAudioContext)();
       }
       const ctx = audioContextRef.current;
       const osc = ctx.createOscillator();
@@ -100,7 +100,7 @@ export default function Kiosk() {
       setScanStatus('success');
       setFeedbackMsg(`Welcome, ${result.username}! Check-In Verified for ${result.eventTitle}`);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       playSoundChime('error');
       if ('vibrate' in navigator) {
         navigator.vibrate([150, 80, 150]);

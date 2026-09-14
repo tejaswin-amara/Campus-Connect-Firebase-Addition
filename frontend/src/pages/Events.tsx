@@ -118,7 +118,7 @@ export default function Events() {
       if (event.registrationLink) {
         window.open(event.registrationLink, '_blank');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err.message === 'EVENT_FULL') {
         alert('Failed to register: This event is already full!');
       } else if (err.message === 'ALREADY_REGISTERED') {

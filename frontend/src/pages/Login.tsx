@@ -25,7 +25,7 @@ export default function Login() {
       // Try standard sign-in
       await signInWithEmailAndPassword(auth, email, password);
       navigate('/dashboard');
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
         setError('Invalid credentials. Please check your username and password.');
       } else {
@@ -44,7 +44,7 @@ export default function Login() {
         await loginWithGoogle();
         navigate('/dashboard');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setError(err.message || 'Google Sign-In failed.');
     } finally {

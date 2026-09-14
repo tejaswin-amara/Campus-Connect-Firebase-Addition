@@ -34,7 +34,7 @@ export function TicketScannerModal({
   const playSoundChime = (type: 'success' | 'error') => {
     try {
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContextRef.current = new (window.AudioContext || (window as unknown).webkitAudioContext)();
       }
       const ctx = audioContextRef.current;
       
@@ -76,7 +76,7 @@ export function TicketScannerModal({
     try {
       setScanStatus('scanning');
       
-      let payload: any;
+      let payload: unknown;
       try {
         payload = JSON.parse(qrData);
       } catch (jsonErr) {
@@ -159,7 +159,7 @@ export function TicketScannerModal({
         setFeedbackMsg('');
       }, 3000);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Haptic and Audio Error feedback
       playSoundChime('error');
       if ('vibrate' in navigator) {

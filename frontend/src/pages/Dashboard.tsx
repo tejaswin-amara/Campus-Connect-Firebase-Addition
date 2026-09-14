@@ -498,7 +498,7 @@ export default function Dashboard() {
         fetchData(); // instant local refetch
       }, 1200);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setModalError(err.message || 'Failed to save event. Check connection.');
     } finally {
@@ -651,7 +651,7 @@ export default function Dashboard() {
       if (event.registrationLink) {
         window.open(event.registrationLink, '_blank');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err.message === 'EVENT_FULL') {
         alert('Failed to register: This event is already full!');
       } else if (err.message === 'ALREADY_REGISTERED') {
@@ -741,7 +741,7 @@ export default function Dashboard() {
       setIsCheckoutOpen(false);
       setCheckoutEvent(null);
       fetchData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err.message === 'ALREADY_REGISTERED') {
         setCheckoutError('You are already registered for this event.');
       } else {
@@ -1157,7 +1157,7 @@ export default function Dashboard() {
 
       fetchData(); // reload squad graph counters
       return { success: true, username: peerData.username };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       return { success: false, error: 'Failed to establish connection.' };
     }
@@ -1771,7 +1771,7 @@ export default function Dashboard() {
 
           {/* Decomposed Squad Connections & Profile QR Column */}
           <SquadPanel 
-            user={user as any}
+            user={user as unknown}
             myPeers={myPeers}
             onAddPeer={handleAddPeer}
           />
