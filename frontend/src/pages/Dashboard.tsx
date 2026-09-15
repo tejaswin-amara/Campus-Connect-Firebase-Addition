@@ -1239,6 +1239,9 @@ export default function Dashboard() {
     if (user?.role === 'STUDENT' && myRegistrations.length > 0) {
       const attendedRegs = myRegistrations.filter(r => r.status === 'ATTENDED');
       const pending = attendedRegs.find(r => !feedbackSubmittedIds.includes(String(r.eventId)));
+      // Note: We deliberately use a separate effect for this to update the feedback modal state
+      // after registrations are loaded. Suppressing eslint warning to allow state update in effect.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (pending && pending.event) {
         setPendingFeedbackEvent(pending.event);
       } else {
@@ -1274,6 +1277,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (user?.role === 'STUDENT') {
       checkGeofence();
     } else {
