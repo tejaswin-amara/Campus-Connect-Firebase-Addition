@@ -107,7 +107,7 @@ export function TicketScannerModal({
 
       const result = await runTransaction(db, async (transaction) => {
         // 1. Fetch registration document atomically
-        const regId = `${userId}_${eventId}`;
+        const regId = `${userId}_${eventIdStr}`;
         const regRef = doc(db, 'registrations', regId);
         const regSnap = await transaction.get(regRef);
 
@@ -126,7 +126,7 @@ export function TicketScannerModal({
         const username = userSnap.exists() ? userSnap.data().username : 'Student';
 
         // 3. Fetch event profile to extract title inside transaction
-        const eventRef = doc(db, 'events', eventId.toString());
+        const eventRef = doc(db, 'events', eventIdStr);
         const eventSnap = await transaction.get(eventRef);
         const eventTitle = eventSnap.exists() ? eventSnap.data().title : 'Event';
 
