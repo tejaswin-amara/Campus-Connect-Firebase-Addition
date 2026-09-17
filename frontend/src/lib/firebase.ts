@@ -5,12 +5,12 @@ import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getMessaging, isSupported } from 'firebase/messaging';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "mock-api-key-for-emulator",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "mock-auth-domain",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "campus-connect-emulator",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "mock-storage-bucket",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "mock-sender-id",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "mock-app-id"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyD5u0vt99_cjjUB21cBMKQVFU1WXWYegsg",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "campusconnect-afd1e.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "campusconnect-afd1e",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "campusconnect-afd1e.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "228582852256",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:228582852256:web:b5a74c4258a2ff6ca6ebc5"
 };
 
 const app = initializeApp(firebaseConfig);
