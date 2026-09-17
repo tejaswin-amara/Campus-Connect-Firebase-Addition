@@ -17,7 +17,12 @@ interface BeforeInstallPromptEvent extends Event {
 
 export function InstallToast() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) {
+      return false;
+    }
+    return false;
+  });
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -28,11 +33,6 @@ export function InstallToast() {
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // Hide toast if app is already running standalone
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsVisible(false);
-    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);

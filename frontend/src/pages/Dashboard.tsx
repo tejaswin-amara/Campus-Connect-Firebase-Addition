@@ -202,7 +202,6 @@ export default function Dashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      setIsLoading(true);
       if (!user) return;
 
       // 1. Fetch all events from Firestore (automatically utilizes local IndexDB persistence cache if offline)
@@ -366,13 +365,19 @@ export default function Dashboard() {
 
     } catch (err) {
       console.error('Failed to fetch dashboard data from Firestore:', err);
-    } finally {
-      setIsLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    fetchData();
+    let ignore = false;
+    const initFetch = async () => {
+      await fetchData();
+      if (!ignore) {
+        setTimeout(() => setIsLoading(false), 0);
+      }
+    }
+    void initFetch();
+    return () => { ignore = true; };
   }, [fetchData]);
 
   // Open modal for adding a new event
@@ -500,7 +505,7 @@ export default function Dashboard() {
 
     } catch (err: unknown) {
       console.error(err);
-      setModalError(err.message || 'Failed to save event. Check connection.');
+      setModalError(err instanceof Error ? err.message : 'Failed to save event. Check connection.');
     } finally {
       setIsSaving(false);
     }
@@ -652,9 +657,10 @@ export default function Dashboard() {
         window.open(event.registrationLink, '_blank');
       }
     } catch (err: unknown) {
-      if (err.message === 'EVENT_FULL') {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === 'EVENT_FULL') {
         alert('Failed to register: This event is already full!');
-      } else if (err.message === 'ALREADY_REGISTERED') {
+      } else if (msg === 'ALREADY_REGISTERED') {
          alert('You have already registered interest for this event.');
       } else {
         console.error('Transaction failed:', err);
@@ -742,11 +748,12 @@ export default function Dashboard() {
       setCheckoutEvent(null);
       fetchData();
     } catch (err: unknown) {
-      if (err.message === 'ALREADY_REGISTERED') {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === 'ALREADY_REGISTERED') {
         setCheckoutError('You are already registered for this event.');
       } else {
         console.error('Simulated Stripe transaction failed:', err);
-        setCheckoutError(err.message || 'Payment authentication failed. Try test card 4242.');
+        setCheckoutError(msg || 'Payment authentication failed. Try test card 4242.');
       }
     } finally {
       setIsProcessingPayment(false);
@@ -1239,10 +1246,11 @@ export default function Dashboard() {
     if (user?.role === 'STUDENT' && myRegistrations.length > 0) {
       const attendedRegs = myRegistrations.filter(r => r.status === 'ATTENDED');
       const pending = attendedRegs.find(r => !feedbackSubmittedIds.includes(String(r.eventId)));
+
       if (pending && pending.event) {
-        setPendingFeedbackEvent(pending.event);
+        setTimeout(() => setPendingFeedbackEvent(pending.event as EventData), 0);
       } else {
-        setPendingFeedbackEvent(null);
+        setTimeout(() => setPendingFeedbackEvent(null), 0);
       }
     }
   }, [myRegistrations, feedbackSubmittedIds, user]);
@@ -1274,10 +1282,11 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+
     if (user?.role === 'STUDENT') {
-      checkGeofence();
+      setTimeout(() => checkGeofence(), 0);
     } else {
-      setIsOnCampus(true);
+      setTimeout(() => setIsOnCampus(true), 0);
     }
   }, [user, checkGeofence]);
 
@@ -1771,7 +1780,7 @@ export default function Dashboard() {
 
           {/* Decomposed Squad Connections & Profile QR Column */}
           <SquadPanel 
-            user={user as unknown}
+            user={user as any}
             myPeers={myPeers}
             onAddPeer={handleAddPeer}
           />

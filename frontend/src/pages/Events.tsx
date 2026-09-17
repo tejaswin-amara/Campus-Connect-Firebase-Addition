@@ -63,7 +63,9 @@ export default function Events() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleRegister = async (eventId: string | number) => {
@@ -119,9 +121,10 @@ export default function Events() {
         window.open(event.registrationLink, '_blank');
       }
     } catch (err: unknown) {
-      if (err.message === 'EVENT_FULL') {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === 'EVENT_FULL') {
         alert('Failed to register: This event is already full!');
-      } else if (err.message === 'ALREADY_REGISTERED') {
+      } else if (msg === 'ALREADY_REGISTERED') {
         alert('You have already registered interest for this event.');
       } else {
         console.error('Transaction failed:', err);

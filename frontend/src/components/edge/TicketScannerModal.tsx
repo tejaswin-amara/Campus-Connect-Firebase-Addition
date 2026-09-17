@@ -34,7 +34,7 @@ export function TicketScannerModal({
   const playSoundChime = (type: 'success' | 'error') => {
     try {
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as unknown).webkitAudioContext)();
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
       const ctx = audioContextRef.current;
       
@@ -79,7 +79,7 @@ export function TicketScannerModal({
       let payload: unknown;
       try {
         payload = JSON.parse(qrData);
-      } catch (jsonErr) {
+      } catch {
         throw new Error('INVALID_TICKET');
       }
 
@@ -87,7 +87,7 @@ export function TicketScannerModal({
         throw new Error('INVALID_TICKET');
       }
 
-      const { userId, eventId, registrationId } = payload;
+      const { userId, eventId, registrationId } = payload as Record<string, unknown>;
       const eventIdStr = eventId?.toString();
 
       if (typeof userId !== 'string' || typeof eventIdStr !== 'string' || typeof registrationId !== 'string') {
@@ -167,9 +167,10 @@ export function TicketScannerModal({
       }
 
       setScanStatus('error');
-      if (err.message === 'DUPLICATE_TICKET') {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === 'DUPLICATE_TICKET') {
         setFeedbackMsg('Warning: Ticket Already Scanned');
-      } else if (err.message === 'INVALID_TICKET' || err.message === 'TICKET_NOT_FOUND') {
+      } else if (msg === 'INVALID_TICKET' || msg === 'TICKET_NOT_FOUND') {
         setFeedbackMsg('Access Denied: Invalid Ticket Pass');
       } else {
         console.error('Check-in error:', err);

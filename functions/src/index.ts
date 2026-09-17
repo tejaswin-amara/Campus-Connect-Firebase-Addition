@@ -28,7 +28,7 @@ export const onRegistrationCancelled = onDocumentDeleted('registrations/{registr
   try {
     const eventRef = db.collection('events').doc(String(eventId));
     
-    await db.runTransaction(async (transaction) => {
+    await db.runTransaction(async (transaction: any) => {
       // 1. Fetch parent event details in transaction
       const eventSnap = await transaction.get(eventRef);
       if (!eventSnap.exists) return;
@@ -226,7 +226,7 @@ export const onRegistrationCreated = onDocumentCreated('registrations/{registrat
 
       // Check how many of parentUser's peers are registered for this event
       const peersSnap = await parentUserRef.collection('connections').get();
-      const peerIds = peersSnap.docs.map(d => d.data().userId).filter(Boolean);
+      const peerIds = peersSnap.docs.map((d: any) => d.data().userId).filter(Boolean);
 
       if (peerIds.length > 0) {
         // Chunk peerIds in batches of 30 due to Firestore "in" query limits
@@ -245,7 +245,7 @@ export const onRegistrationCreated = onDocumentCreated('registrations/{registrat
         });
 
         const sizes = await Promise.all(queryPromises);
-        const registeredPeerCount = sizes.reduce((acc, curr) => acc + curr, 0);
+        const registeredPeerCount = sizes.reduce((acc: number, curr: number) => acc + curr, 0);
 
         if (registeredPeerCount >= 3) {
           // Send notification to parentUser
@@ -383,7 +383,7 @@ export const onStripePaymentSuccess = onRequest(async (req, res) => {
     const regRef = db.collection('registrations').doc(registrationId);
     const eventRef = db.collection('events').doc(String(eventId));
 
-    await db.runTransaction(async (transaction) => {
+    await db.runTransaction(async (transaction: any) => {
       const eventSnap = await transaction.get(eventRef);
       if (!eventSnap.exists) {
         throw new Error('Event does not exist');

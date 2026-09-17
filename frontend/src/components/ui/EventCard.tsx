@@ -190,7 +190,7 @@ export const EventCardBody = memo(function EventCardBody({
             capacity={event.maxCapacity} 
             registered={registeredCount} 
             category={event.category} 
-            createdAt={(event as unknown).createdAt}
+            createdAt={(event as any).createdAt}
           />
         </div>
       )}
