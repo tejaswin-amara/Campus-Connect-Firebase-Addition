@@ -202,7 +202,6 @@ export default function Dashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      setIsLoading(true);
       if (!user) return;
 
       // 1. Fetch all events from Firestore (automatically utilizes local IndexDB persistence cache if offline)
@@ -366,13 +365,19 @@ export default function Dashboard() {
 
     } catch (err) {
       console.error('Failed to fetch dashboard data from Firestore:', err);
-    } finally {
-      setIsLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    fetchData();
+    let ignore = false;
+    const initFetch = async () => {
+      await fetchData();
+      if (!ignore) {
+        setTimeout(() => setIsLoading(false), 0);
+      }
+    }
+    void initFetch();
+    return () => { ignore = true; };
   }, [fetchData]);
 
   // Open modal for adding a new event
@@ -498,9 +503,9 @@ export default function Dashboard() {
         fetchData(); // instant local refetch
       }, 1200);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setModalError(err.message || 'Failed to save event. Check connection.');
+      setModalError(err instanceof Error ? err.message : 'Failed to save event. Check connection.');
     } finally {
       setIsSaving(false);
     }
@@ -651,10 +656,11 @@ export default function Dashboard() {
       if (event.registrationLink) {
         window.open(event.registrationLink, '_blank');
       }
-    } catch (err: any) {
-      if (err.message === 'EVENT_FULL') {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === 'EVENT_FULL') {
         alert('Failed to register: This event is already full!');
-      } else if (err.message === 'ALREADY_REGISTERED') {
+      } else if (msg === 'ALREADY_REGISTERED') {
          alert('You have already registered interest for this event.');
       } else {
         console.error('Transaction failed:', err);
@@ -741,12 +747,13 @@ export default function Dashboard() {
       setIsCheckoutOpen(false);
       setCheckoutEvent(null);
       fetchData();
-    } catch (err: any) {
-      if (err.message === 'ALREADY_REGISTERED') {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === 'ALREADY_REGISTERED') {
         setCheckoutError('You are already registered for this event.');
       } else {
         console.error('Simulated Stripe transaction failed:', err);
-        setCheckoutError(err.message || 'Payment authentication failed. Try test card 4242.');
+        setCheckoutError(msg || 'Payment authentication failed. Try test card 4242.');
       }
     } finally {
       setIsProcessingPayment(false);
@@ -1157,7 +1164,7 @@ export default function Dashboard() {
 
       fetchData(); // reload squad graph counters
       return { success: true, username: peerData.username };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       return { success: false, error: 'Failed to establish connection.' };
     }
@@ -1243,9 +1250,9 @@ export default function Dashboard() {
       // after registrations are loaded. Suppressing eslint warning to allow state update in effect.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (pending && pending.event) {
-        setPendingFeedbackEvent(pending.event);
+        setTimeout(() => setPendingFeedbackEvent(pending.event as EventData), 0);
       } else {
-        setPendingFeedbackEvent(null);
+        setTimeout(() => setPendingFeedbackEvent(null), 0);
       }
     }
   }, [myRegistrations, feedbackSubmittedIds, user]);
@@ -1279,9 +1286,9 @@ export default function Dashboard() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (user?.role === 'STUDENT') {
-      checkGeofence();
+      setTimeout(() => checkGeofence(), 0);
     } else {
-      setIsOnCampus(true);
+      setTimeout(() => setIsOnCampus(true), 0);
     }
   }, [user, checkGeofence]);
 

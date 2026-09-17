@@ -55,7 +55,7 @@ export default function Kiosk() {
   const processCheckIn = async (qrData: string) => {
     try {
       setScanStatus('scanning');
-      const payload = JSON.parse(qrData);
+        const payload = JSON.parse(qrData) as { userId?: string; eventId?: string; registrationId?: string };
       const { userId, eventId } = payload;
 
       if (!userId || !eventId) {
@@ -100,16 +100,17 @@ export default function Kiosk() {
       setScanStatus('success');
       setFeedbackMsg(`Welcome, ${result.username}! Check-In Verified for ${result.eventTitle}`);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       playSoundChime('error');
       if ('vibrate' in navigator) {
         navigator.vibrate([150, 80, 150]);
       }
 
       setScanStatus('error');
-      if (err.message === 'DUPLICATE_TICKET') {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === 'DUPLICATE_TICKET') {
         setFeedbackMsg('Warning: Ticket Already Scanned');
-      } else if (err.message === 'INVALID_TICKET' || err.message === 'TICKET_NOT_FOUND') {
+      } else if (msg === 'INVALID_TICKET' || msg === 'TICKET_NOT_FOUND') {
         setFeedbackMsg('Access Denied: Invalid Student Pass');
       } else {
         setFeedbackMsg('System Resolution Failed');

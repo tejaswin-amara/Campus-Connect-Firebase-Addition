@@ -38,7 +38,7 @@ export function SquadPanel({
       } else {
         setPeerSearchError(result.error || 'Failed to add peer.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setPeerSearchError('System error establishing peer connection.');
     } finally {
       setIsAddingPeer(false);

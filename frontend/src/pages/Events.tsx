@@ -120,10 +120,11 @@ export default function Events() {
       if (event.registrationLink) {
         window.open(event.registrationLink, '_blank');
       }
-    } catch (err: any) {
-      if (err.message === 'EVENT_FULL') {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === 'EVENT_FULL') {
         alert('Failed to register: This event is already full!');
-      } else if (err.message === 'ALREADY_REGISTERED') {
+      } else if (msg === 'ALREADY_REGISTERED') {
         alert('You have already registered interest for this event.');
       } else {
         console.error('Transaction failed:', err);

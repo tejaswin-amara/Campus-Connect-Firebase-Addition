@@ -166,10 +166,10 @@ describe('🔱 SOVEREIGN CHAOS ENGINEERING PROTOCOL (E2E SYSTEM VALIDATION)', ()
     const pathSafeRegex = /^[a-zA-Z0-9_:-]+$/;
 
     const validatePayload = (qrData: string) => {
-      let payload: any;
+      let payload: unknown;
       try {
         payload = JSON.parse(qrData);
-      } catch (jsonErr) {
+      } catch {
         throw new Error('INVALID_TICKET');
       }
 
@@ -177,7 +177,7 @@ describe('🔱 SOVEREIGN CHAOS ENGINEERING PROTOCOL (E2E SYSTEM VALIDATION)', ()
         throw new Error('INVALID_TICKET');
       }
 
-      const { userId, eventId, registrationId } = payload;
+      const { userId, eventId, registrationId } = payload as Record<string, unknown>;
       const eventIdStr = eventId?.toString();
 
       if (typeof userId !== 'string' || typeof eventIdStr !== 'string' || typeof registrationId !== 'string') {
@@ -226,7 +226,7 @@ describe('🔱 SOVEREIGN CHAOS ENGINEERING PROTOCOL (E2E SYSTEM VALIDATION)', ()
   // FAILURE POINT 5: STRIPE WEBHOOK DECOUPLING
   // ==========================================
   describe('5. Stripe Webhook Decoupling (Firestore Rules Validation)', () => {
-    const checkSecurityRules = (auth: { uid: string; role: string } | null, resourceData: any, targetEvent: typeof mockEventData | typeof mockPremiumEventData) => {
+    const checkSecurityRules = (auth: { uid: string; role: string } | null, resourceData: Record<string, unknown>, targetEvent: typeof mockEventData | typeof mockPremiumEventData) => {
       // Rule translation check
       const isAuthenticated = auth !== null;
       if (!isAuthenticated) return false;

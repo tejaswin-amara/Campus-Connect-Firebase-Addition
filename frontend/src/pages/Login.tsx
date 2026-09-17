@@ -25,11 +25,13 @@ export default function Login() {
       // Try standard sign-in
       await signInWithEmailAndPassword(auth, email, password);
       navigate('/dashboard');
-    } catch (err: any) {
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+    } catch (err: unknown) {
+      const code = err instanceof Error && 'code' in err ? (err as { code: string }).code : undefined;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
         setError('Invalid credentials. Please check your username and password.');
       } else {
-        setError(err.message || 'Login failed. Please check your credentials.');
+        setError(msg || 'Login failed. Please check your credentials.');
       }
     } finally {
       setIsLoading(false);
@@ -44,9 +46,9 @@ export default function Login() {
         await loginWithGoogle();
         navigate('/dashboard');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || 'Google Sign-In failed.');
+      setError(err instanceof Error ? err.message : 'Google Sign-In failed.');
     } finally {
       setIsLoading(false);
     }

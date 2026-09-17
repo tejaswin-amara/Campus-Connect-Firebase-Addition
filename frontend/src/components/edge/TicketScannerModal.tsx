@@ -76,10 +76,10 @@ export function TicketScannerModal({
     try {
       setScanStatus('scanning');
       
-      let payload: any;
+      let payload: unknown;
       try {
         payload = JSON.parse(qrData);
-      } catch (jsonErr) {
+      } catch {
         throw new Error('INVALID_TICKET');
       }
 
@@ -87,7 +87,7 @@ export function TicketScannerModal({
         throw new Error('INVALID_TICKET');
       }
 
-      const { userId, eventId, registrationId } = payload;
+      const { userId, eventId, registrationId } = payload as Record<string, unknown>;
       const eventIdStr = eventId?.toString();
 
       if (typeof userId !== 'string' || typeof eventIdStr !== 'string' || typeof registrationId !== 'string') {
@@ -107,7 +107,7 @@ export function TicketScannerModal({
 
       const result = await runTransaction(db, async (transaction) => {
         // 1. Fetch registration document atomically
-        const regId = `${userId}_${eventId}`;
+        const regId = `${userId}_${eventIdStr}`;
         const regRef = doc(db, 'registrations', regId);
         const regSnap = await transaction.get(regRef);
 
@@ -126,7 +126,7 @@ export function TicketScannerModal({
         const username = userSnap.exists() ? userSnap.data().username : 'Student';
 
         // 3. Fetch event profile to extract title inside transaction
-        const eventRef = doc(db, 'events', eventId.toString());
+        const eventRef = doc(db, 'events', eventIdStr);
         const eventSnap = await transaction.get(eventRef);
         const eventTitle = eventSnap.exists() ? eventSnap.data().title : 'Event';
 
@@ -159,7 +159,7 @@ export function TicketScannerModal({
         setFeedbackMsg('');
       }, 3000);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Haptic and Audio Error feedback
       playSoundChime('error');
       if ('vibrate' in navigator) {
@@ -167,9 +167,10 @@ export function TicketScannerModal({
       }
 
       setScanStatus('error');
-      if (err.message === 'DUPLICATE_TICKET') {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === 'DUPLICATE_TICKET') {
         setFeedbackMsg('Warning: Ticket Already Scanned');
-      } else if (err.message === 'INVALID_TICKET' || err.message === 'TICKET_NOT_FOUND') {
+      } else if (msg === 'INVALID_TICKET' || msg === 'TICKET_NOT_FOUND') {
         setFeedbackMsg('Access Denied: Invalid Ticket Pass');
       } else {
         console.error('Check-in error:', err);
