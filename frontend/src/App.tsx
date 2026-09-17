@@ -12,7 +12,7 @@ const Login = lazy(() => import('./pages/Login'));
 const Events = lazy(() => import('./pages/Events'));
 const Kiosk = lazy(() => import('./pages/Kiosk'));
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   const { user, isLoading } = useAuth();
   
   if (isLoading) {
@@ -28,6 +28,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (adminOnly && user.role !== 'ADMIN') {
+    return <Navigate to="/dashboard" replace />;
   }
   
   return <>{children}</>;
@@ -88,7 +92,7 @@ function AppContent() {
         <Route 
           path="/kiosk" 
           element={
-            <ProtectedRoute>
+            <ProtectedRoute adminOnly>
               <Kiosk />
             </ProtectedRoute>
           } 

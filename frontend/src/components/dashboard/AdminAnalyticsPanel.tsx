@@ -123,7 +123,10 @@ export default function AdminAnalyticsPanel({
 
     adminRegistrations.forEach(r => {
       if (r.registeredAt) {
-        const hour = new Date(r.registeredAt).getHours();
+        const d = typeof r.registeredAt === 'object' && !(r.registeredAt instanceof Date) && 'seconds' in r.registeredAt
+          ? new Date(r.registeredAt.seconds * 1000)
+          : new Date(r.registeredAt as string | number | Date);
+        const hour = d.getHours();
         if (hour >= 0 && hour < 24) {
           hourlyCounts[hour]++;
         }

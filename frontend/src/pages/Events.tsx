@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { EventCard } from '../components/ui/EventCard';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -15,6 +16,7 @@ import {
 import { Compass, Sparkles } from 'lucide-react';
 
 export default function Events() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [events, setEvents] = useState<EventData[]>([]);
   const [registrationCounts, setRegistrationCounts] = useState<Record<string, number>>({});
@@ -77,6 +79,17 @@ export default function Events() {
     try {
       const event = events.find(e => e.id === eventId);
       if (!event) return;
+
+      // Prevent unauthorized client registration write on paid events for non-admin students
+      if (event.isPaid && user.role !== 'ADMIN') {
+        if (event.registrationLink) {
+          window.open(event.registrationLink, '_blank');
+        } else {
+          alert(`This is a paid event (₹${event.ticketPrice || 0}). Please complete your payment and registration on the Student Dashboard.`);
+          navigate('/dashboard');
+        }
+        return;
+      }
 
       await runTransaction(db, async (transaction) => {
         // 1. Defensively read the event document in this atomic transaction

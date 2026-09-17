@@ -139,8 +139,13 @@ export function AttendeePanelModal({
                   <tbody className="divide-y divide-border/10">
                     {filteredRegs.map((reg) => {
                       const studentName = reg.username || reg.userId;
-                      const regDate = reg.registeredAt 
-                        ? new Date(reg.registeredAt).toLocaleDateString(undefined, {
+                      const parsedDate = reg.registeredAt
+                        ? (typeof reg.registeredAt === 'object' && !(reg.registeredAt instanceof Date) && 'seconds' in reg.registeredAt
+                            ? new Date(reg.registeredAt.seconds * 1000)
+                            : new Date(reg.registeredAt as string | number | Date))
+                        : null;
+                      const regDate = parsedDate && !isNaN(parsedDate.getTime())
+                        ? parsedDate.toLocaleDateString(undefined, {
                             year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                           })
                         : 'N/A';

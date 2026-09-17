@@ -150,7 +150,7 @@ describe('🔱 SOVEREIGN CHAOS ENGINEERING PROTOCOL (E2E SYSTEM VALIDATION)', ()
         try {
           await mockEnablePersistence();
           return 'PERSISTENCE_ENABLED';
-        } catch (e) {
+        } catch {
           return 'FAILED';
         }
       };

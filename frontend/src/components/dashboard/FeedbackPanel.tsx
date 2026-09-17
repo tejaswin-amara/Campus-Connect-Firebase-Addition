@@ -31,7 +31,7 @@ export function FeedbackPanel({
         setTakeaway('');
         setRating(5);
       }
-    } catch (err) {
+    } catch {
       // Handled by parent callback
     } finally {
       setIsSubmitting(false);

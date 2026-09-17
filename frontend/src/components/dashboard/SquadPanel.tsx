@@ -4,9 +4,10 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { QRCodeSVG } from 'qrcode.react';
 import type { UserProfile, PeerRelation } from '../../types';
+import type { User } from '../../contexts/AuthContext';
 
 interface SquadPanelProps {
-  user: UserProfile;
+  user: UserProfile | User;
   myPeers: PeerRelation[];
   onAddPeer: (email: string) => Promise<{ success: boolean; error?: string; username?: string }>;
 }
@@ -38,7 +39,7 @@ export function SquadPanel({
       } else {
         setPeerSearchError(result.error || 'Failed to add peer.');
       }
-    } catch (err: unknown) {
+    } catch {
       setPeerSearchError('System error establishing peer connection.');
     } finally {
       setIsAddingPeer(false);

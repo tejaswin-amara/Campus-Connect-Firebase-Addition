@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { X, Camera, CheckCircle, AlertOctagon, RefreshCw } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { db } from '../../lib/firebase';
@@ -25,16 +25,17 @@ export function TicketScannerModal({
   const audioContextRef = useRef<AudioContext | null>(null);
 
   // Timeouts to prevent state leaks on unmount
-  const scanTimeoutRef = useRef<any>(null);
-  const errorTimeoutRef = useRef<any>(null);
-  const resumeTimeoutRef = useRef<any>(null);
-  const mountDelayTimeoutRef = useRef<any>(null);
+  const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Web Audio API Synthesizer Chimes
-  const playSoundChime = (type: 'success' | 'error') => {
+  const playSoundChime = useCallback((type: 'success' | 'error') => {
     try {
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const audioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        audioContextRef.current = new audioCtxClass();
       }
       const ctx = audioContextRef.current;
       
@@ -69,10 +70,10 @@ export function TicketScannerModal({
     } catch (e) {
       console.warn('Audio Synthesizer not supported or blocked by user gesture:', e);
     }
-  };
+  }, []);
 
   // Physical check-in transaction resolver
-  const processCheckIn = async (qrData: string) => {
+  const processCheckIn = useCallback(async (qrData: string) => {
     try {
       setScanStatus('scanning');
       
@@ -184,7 +185,7 @@ export function TicketScannerModal({
         setFeedbackMsg('');
       }, 3500);
     }
-  };
+  }, [onSuccessCheckIn, playSoundChime]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -228,7 +229,9 @@ export function TicketScannerModal({
                       if (html5QrcodeRef.current) {
                         qrScanner.resume();
                       }
-                    } catch (e) {}
+                    } catch {
+                      // ignore resume error
+                    }
                   }, 3500);
                 });
               }
@@ -261,18 +264,22 @@ export function TicketScannerModal({
       if (html5QrcodeRef.current) {
         try {
           html5QrcodeRef.current.stop().catch(e => console.warn('Scanner stop warning:', e));
-        } catch (e) {}
+        } catch {
+          // ignore cleanup error
+        }
         html5QrcodeRef.current = null;
       }
       
       if (audioContextRef.current) {
         try {
           audioContextRef.current.close().catch(() => {});
-        } catch (e) {}
+        } catch {
+          // ignore cleanup error
+        }
         audioContextRef.current = null;
       }
     };
-  }, [isOpen]);
+  }, [isOpen, processCheckIn]);
 
   // Gate render logic strictly here to fulfill React rules of hooks (hooks are always registered)
   if (!isOpen) return null;

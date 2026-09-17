@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Camera, CheckCircle, AlertOctagon, RefreshCw, X } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { db } from '../lib/firebase';
@@ -19,10 +19,11 @@ export default function Kiosk() {
   const audioContextRef = useRef<AudioContext | null>(null);
 
   // Web Audio API Programmatic Wave Synthesizer Chimes
-  const playSoundChime = (type: 'success' | 'error') => {
+  const playSoundChime = useCallback((type: 'success' | 'error') => {
     try {
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const audioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        audioContextRef.current = new audioCtxClass();
       }
       const ctx = audioContextRef.current;
       const osc = ctx.createOscillator();
@@ -49,13 +50,13 @@ export default function Kiosk() {
     } catch (e) {
       console.warn('Audio gesture block:', e);
     }
-  };
+  }, []);
 
   // Passive Check-In Atomic Resolution Transaction
-  const processCheckIn = async (qrData: string) => {
+  const processCheckIn = useCallback(async (qrData: string) => {
     try {
       setScanStatus('scanning');
-        const payload = JSON.parse(qrData) as { userId?: string; eventId?: string; registrationId?: string };
+      const payload = JSON.parse(qrData) as { userId?: string; eventId?: string; registrationId?: string };
       const { userId, eventId } = payload;
 
       if (!userId || !eventId) {
@@ -116,7 +117,7 @@ export default function Kiosk() {
         setFeedbackMsg('System Resolution Failed');
       }
     }
-  };
+  }, [playSoundChime]);
 
   useEffect(() => {
     const startScanner = async () => {
@@ -142,7 +143,9 @@ export default function Kiosk() {
                     setScanStatus('scanning');
                     setFeedbackMsg('');
                     qrScanner.resume();
-                  } catch (e) {}
+                  } catch {
+                    // ignore resume error
+                  }
                 }, 3000);
               });
             }
@@ -166,10 +169,12 @@ export default function Kiosk() {
       if (html5QrcodeRef.current) {
         try {
           html5QrcodeRef.current.stop().catch(e => console.warn('Kiosk stop warning:', e));
-        } catch (e) {}
+        } catch {
+          // ignore cleanup error
+        }
       }
     };
-  }, []);
+  }, [processCheckIn]);
 
   return (
     <div className={`fixed inset-0 z-[300] flex flex-col items-center justify-center p-6 transition-colors duration-500 select-none ${

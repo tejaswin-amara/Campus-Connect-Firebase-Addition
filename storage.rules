@@ -7,10 +7,14 @@ service firebase.storage {
       return request.auth != null;
     }
     
-    // Helper to check if user is an Admin
+    // Helper to check if user is an Admin (synchronized with firestore.rules)
     function isAdmin() {
-      return isAuthenticated() && 
-        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid)) ||
+        (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'ADMIN')
+      );
     }
 
     // 1. Event cover images: Authenticated read access, write access strictly restricted to Admins
@@ -19,6 +23,14 @@ service firebase.storage {
       allow write: if isAdmin() &&
                     request.resource.size < 5 * 1024 * 1024 && // Max 5MB file size
                     request.resource.contentType.matches('image/.*'); // Only image files allowed
+    }
+
+    // 2. Event banners: Public and authenticated read access, write access strictly restricted to Admins
+    match /event_banners/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() &&
+                    request.resource.size < 5 * 1024 * 1024 &&
+                    request.resource.contentType.matches('image/.*');
     }
     
     // 2. User profile uploads: Authenticated read access, write access restricted to the profile owner

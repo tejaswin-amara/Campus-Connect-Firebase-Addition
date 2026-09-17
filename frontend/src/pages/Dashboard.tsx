@@ -1249,7 +1249,6 @@ export default function Dashboard() {
       const pending = attendedRegs.find(r => !feedbackSubmittedIds.includes(String(r.eventId)));
       // Note: We deliberately use a separate effect for this to update the feedback modal state
       // after registrations are loaded. Suppressing eslint warning to allow state update in effect.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (pending && pending.event) {
         setTimeout(() => setPendingFeedbackEvent(pending.event as EventData), 0);
       } else {
@@ -1285,7 +1284,6 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (user?.role === 'STUDENT') {
       setTimeout(() => checkGeofence(), 0);
     } else {
@@ -1783,7 +1781,7 @@ export default function Dashboard() {
 
           {/* Decomposed Squad Connections & Profile QR Column */}
           <SquadPanel 
-            user={user as any}
+            user={user}
             myPeers={myPeers}
             onAddPeer={handleAddPeer}
           />

@@ -30,13 +30,21 @@ export interface EventData {
   ticketPrice?: number;
 }
 
+export type FirestoreTimestamp = {
+  seconds: number;
+  nanoseconds?: number;
+  toDate?: () => Date;
+};
+
+export type TimestampField = string | number | Date | FirestoreTimestamp;
+
 export interface Registration {
   id: string;
   userId: string;
   username: string;
   eventId: string | number;
   eventTitle: string;
-  registeredAt: string | any; // Supports ISO strings or Firestore ServerTimestamp
+  registeredAt: TimestampField; // Supports ISO strings or Firestore ServerTimestamp
   status: 'REGISTERED' | 'WAITLISTED' | 'ATTENDED';
   paymentStatus: 'FREE' | 'PENDING' | 'PAID';
   paymentIntentId?: string;
@@ -55,7 +63,7 @@ export interface PeerRelation {
   requesterId?: string;
   receiverId?: string;
   status?: 'PENDING' | 'ACCEPTED';
-  connectedAt?: string | any;
+  connectedAt?: TimestampField;
 }
 
 export interface FeedbackRating {
