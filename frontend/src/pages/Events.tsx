@@ -8,7 +8,9 @@ import {
   collection, 
   getDocs, 
   doc,
-  runTransaction
+  runTransaction,
+  query,
+  where
 } from 'firebase/firestore';
 import { Compass, Sparkles } from 'lucide-react';
 
@@ -34,27 +36,29 @@ export default function Events() {
       fetchedEvents.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
       setEvents(fetchedEvents);
 
-      // 2. Fetch all registrations from Firestore
-      const regsSnap = await getDocs(collection(db, 'registrations'));
-      const fetchedRegistrations = regsSnap.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      })) as Registration[];
+      // 2. Fetch student registrations securely
+      if (user) {
+        const q = user.role === 'ADMIN'
+          ? collection(db, 'registrations')
+          : query(collection(db, 'registrations'), where('userId', '==', user.id));
+        const regsSnap = await getDocs(q);
+        const studentRegs = regsSnap.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        })) as Registration[];
+        setMyRegistrations(studentRegs);
+      } else {
+        setMyRegistrations([]);
+      }
 
-      // 3. Compute registration counts mapping
+      // 3. Compute registration counts mapping from event documents
       const counts: Record<string, number> = {};
-      fetchedRegistrations.forEach(r => {
-        if (r.eventId) {
-          counts[r.eventId] = (counts[r.eventId] || 0) + 1;
+      fetchedEvents.forEach(e => {
+        if (e.id) {
+          counts[e.id] = e.registeredCount ? parseInt(e.registeredCount.toString()) : 0;
         }
       });
       setRegistrationCounts(counts);
-
-      // 4. Map student specific registrations
-      if (user) {
-        const studentRegs = fetchedRegistrations.filter(r => r.userId === user.id);
-        setMyRegistrations(studentRegs);
-      }
     } catch (err) {
       console.error('Failed to fetch events data from Firestore:', err);
     } finally {
@@ -107,7 +111,7 @@ export default function Events() {
         // 5. Commit atomic registration document
         transaction.set(regRef, {
           userId: user.id,
-          eventId: eventId,
+          eventId: eventId.toString(),
           registeredAt: new Date().toISOString(),
           status: 'REGISTERED',
           event: event
@@ -128,7 +132,8 @@ export default function Events() {
         alert('You have already registered interest for this event.');
       } else {
         console.error('Transaction failed:', err);
-        alert('Failed to register due to a database conflict.');
+        const details = err instanceof Error ? err.message : '';
+        alert(`Failed to register due to a database conflict.${details ? ` (${details})` : ''}`);
       }
     }
   };

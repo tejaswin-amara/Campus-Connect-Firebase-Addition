@@ -621,7 +621,7 @@ export default function Dashboard() {
           // Commit waitlisted document with priority queue timestamp
           transaction.set(regRef, {
             userId: user.id,
-            eventId: eventId,
+            eventId: eventId.toString(),
             registeredAt: new Date().toISOString(),
             status: 'WAITLISTED',
             event: event
@@ -637,7 +637,7 @@ export default function Dashboard() {
           });
           transaction.set(regRef, {
             userId: user.id,
-            eventId: eventId,
+            eventId: eventId.toString(),
             registeredAt: new Date().toISOString(),
             status: 'REGISTERED',
             event: event
@@ -664,7 +664,8 @@ export default function Dashboard() {
          alert('You have already registered interest for this event.');
       } else {
         console.error('Transaction failed:', err);
-        alert('Failed to register due to a database conflict.');
+        const details = err instanceof Error ? err.message : '';
+        alert(`Failed to register due to a database conflict.${details ? ` (${details})` : ''}`);
       }
     }
   }, [user, events, registeredIds, checkClash, fetchData]);

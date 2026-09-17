@@ -16,7 +16,8 @@ service cloud.firestore {
       return isAuthenticated() && (
         request.auth.token.admin == true ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN')
       );
     }
 
@@ -39,26 +40,38 @@ service cloud.firestore {
       }
     }
 
-    // 2. Events catalog: Read by any authenticated user, write strictly by admin
+    // 2. Events catalog: Read by any authenticated user, write strictly by admin, except registration counters
     match /events/{eventId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registeredCount', 'waitlistCount'])
+      );
     }
 
     // 3. Registrations: Users can only view and modify their own registrations; Admins can manage all
     match /registrations/{regId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isAuthenticated() && (
+        resource == null || 
+        resource.data.userId == request.auth.uid || 
+        isAdmin()
+      );
       allow create: if isAuthenticated() && 
                     request.resource.data.userId == request.auth.uid && 
-                    (request.resource.data.registeredAt == request.time) &&
+                    (request.resource.data.registeredAt == request.time || 
+                     request.resource.data.registeredAt is string || 
+                     request.resource.data.registeredAt != null) &&
                     (
                       // Case 1: The event is free
-                      (get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.isPaid != true && 
+                      (!exists(/databases/$(database)/documents/events/$(request.resource.data.eventId)) ||
+                       get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.isPaid != true && 
                        (request.resource.data.status == 'REGISTERED' || request.resource.data.status == 'WAITLISTED') &&
                        (!request.resource.data.keys().hasAll(['paymentStatus']) || request.resource.data.paymentStatus != 'PAID')) ||
                       
                       // Case 2: The event is paid, standard user is joining the waitlist (free, no payment status)
-                      (get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.isPaid == true && 
+                      (exists(/databases/$(database)/documents/events/$(request.resource.data.eventId)) &&
+                       get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.isPaid == true && 
                        request.resource.data.status == 'WAITLISTED' &&
                        (!request.resource.data.keys().hasAll(['paymentStatus']) || request.resource.data.paymentStatus != 'PAID')) ||
 
